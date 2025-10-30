@@ -64,7 +64,7 @@ function main() {
 		const intensity = 3;
 		const light = new THREE.DirectionalLight( color, intensity );
 		light.position.set( 0, 10, 0 );
-		light.target.position.set( - 5, 0, 0 );
+		light.target.position.set( -5, 0, 0 );
 		scene.add( light );
 		scene.add( light.target );
 
@@ -85,26 +85,39 @@ function main() {
 		const mesh = new THREE.Mesh( planeGeo, planeMat );
 		mesh.rotation.x = Math.PI * - .5;
 		scene.add( mesh );
+	}	
 
-		// import the basic rover model
-		
-		const loaderglb = new GLTFLoader();
-		loaderglb.load( 'assets/rfr.glb', function ( gltf ) {
-			scene.add( gltf.scene );
-			rfrBody = gltf.scene.getObjectByName("body");
-			rfrMastHead = gltf.scene.getObjectByName("masthead");
-		}, undefined, function ( error ) {
-			console.error( error );
-		});
-	}
-
-	
 
 	// create PanCam
-	const mastheadGroup = new THREE.Group();
-	mastheadGroup.position.set(0, 1, 0);
-	// mastheadGroup.position.set(0, 1, -0.26);
-	// WACs and HRC
+	// pan and tilt managed separately to keep rotation clean
+	const tiltGroup = new THREE.Group();
+	const panGroup = new THREE.Group();
+
+	// import the basic rover model
+	const loaderglb = new GLTFLoader();
+	loaderglb.load( 'assets/rfr.glb', function ( gltf ) {
+		scene.add( gltf.scene );
+		rfrBody = gltf.scene.getObjectByName("body");
+		rfrMastHead = gltf.scene.getObjectByName("masthead");
+		rfrMastHead.position.set(0, 0.05, 0.03);
+		tiltGroup.add(rfrMastHead);
+
+		// useful for debuggung - get all the available named items
+		// gltf.scene.traverse(function(child){
+		//     console.log(child.name);
+		// });
+
+	}, undefined, function ( error ) {
+		console.error( error );
+	});
+
+	// helper cube shows the ptu - for debugging
+	// const geometry = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
+	// const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+	// const cube = new THREE.Mesh( geometry, material );
+	// tiltGroup.add( cube );
+
+	// WACs and HRC camera setup and relative positioning
 	const wacfov = 38;
 	const pcaspect = 1; 
 	const wacnear = 1;
@@ -114,73 +127,75 @@ function main() {
 	const hrc = new THREE.PerspectiveCamera( 4.88, 1, 0.98, 3 );
 	const wacposx = 0.25;
 	const hrcposx = 0.154;
-	const pcposy = 0; // 2
-	const pcposz = 0;//-0.52;
-	lwac.position.set( -wacposx, pcposy, pcposz );
-	rwac.position.set( wacposx, pcposy, pcposz );
-	hrc.position.set( hrcposx, pcposy, pcposz );
+	const pcposy = 0.2;
+	const pcposz = -0.02;
+	lwac.position.set( -wacposx, pcposy, 0 );
+	rwac.position.set( wacposx, pcposy, 0 );
+	hrc.position.set( hrcposx, pcposy, 0 );
 	const toeinrad = 0.08;
 	lwac.rotateY(-toeinrad);
 	rwac.rotateY(toeinrad);
-	// scene.add(lwac);
-	// scene.add(rwac);
-	// scene.add(hrc);
+
+	// create helpers to do the visualisation
 	const lwacVis = new THREE.CameraHelper(lwac);
 	const rwacVis = new THREE.CameraHelper(rwac);
 	const hrcVis = new THREE.CameraHelper(hrc);
-	// scene.add(lwacVis);
-	// scene.add(rwacVis);
-	// scene.add(hrcVis);
+	scene.add(lwacVis);
+	scene.add(rwacVis);
+	scene.add(hrcVis);
 
-	
-	if(rfrMastHead){mastheadGroup.add(rfrMastHead);}
-	mastheadGroup.add(lwac);
-	mastheadGroup.add(rwac);
-	mastheadGroup.add(hrc);
-	mastheadGroup.add(lwacVis);
-	mastheadGroup.add(rwacVis);
-	mastheadGroup.add(hrcVis);
-	scene.add(mastheadGroup)
+	// add them to the tilt group
+	tiltGroup.add(lwac);
+	tiltGroup.add(rwac);
+	tiltGroup.add(hrc);
 
-	function updatePanCam() {
-		// lwacVis.update();
-		lwac.updateProjectionMatrix();
-		rwac.updateProjectionMatrix();
-		hrc.updateProjectionMatrix();
-	}
+	// then pan group
+	panGroup.position.set(0, 1.8, -0.52);
+	panGroup.add(tiltGroup);
 
-	function panPTU(panIncrement){
-		if(rfrMastHead){
-			rfrMastHead.rotation.y += degToRad(panIncrement);
-		}
-	}
-	function tiltPTU(tiltIncrement){
-		if(rfrMastHead){
-			rfrMastHead.rotation.x += degToRad(tiltIncrement);
-		}
-	}
-	function ptuRange(){
-		if(rfrMastHead){
-			do {
-				tiltPTU(1)
-			} while(rfrMastHead.rotation.x > degToRad(90))
-			console.log(rfrMastHead)
-		}
-	}
+	// finally, add it all to the scene
+	scene.add(panGroup);
 
 	const gui = new GUI();
-	gui.add(lwac, 'far', 2, 10).name("lwac far").step(0.1);
-	// gui.add(mastheadGroup.rotation, 'x', 0, Math.PI/4).name("tilt");
-	gui.add(mastheadGroup.rotation, 'y', -Math.PI/2, Math.PI/2).name("pan");
-	// gui.add( rfrMastHead, 'pan', 1, 180 ).onChange( panPTU, 1 );
-	// const minMaxGUIHelper = new MinMaxGUIHelper( camera, 'near', 'far', 0.1 );
-	// gui.add( minMaxGUIHelper, 'min', 0.1, 50, 0.1 ).name( 'near' ).onChange( updateCamera );
-	// gui.add( minMaxGUIHelper, 'max', 0.1, 50, 0.1 ).name( 'far' ).onChange( updateCamera );
+	const ptucFolder = gui.addFolder( 'PTU Controls' ).close();
+	ptucFolder.add(tiltGroup.rotation, 'x', -Math.PI/2, Math.PI/2).name("Tilt").listen();
+	ptucFolder.add(panGroup.rotation, 'y', -Math.PI, Math.PI).name("Pan").listen();
+	ptucFolder.add(lwacVis, 'visible').name("Show LWAC");
+	ptucFolder.add(rwacVis, 'visible').name("Show RWAC");
+	ptucFolder.add(hrcVis, 'visible').name("Show HRC");
 
-	if(rfrMastHead){
-		console.log("rfrMastHead")
-		gui.add( rfrMastHead, 'pan', 1, 180 ).onChange( panPTU );
-	}
+	const ccFolder = gui.addFolder( 'Camera Controls' ).close();
+	ccFolder.add(lwac, 'far', 2, 10).name("LWAC distance area (m)").step(0.1);
+	ccFolder.add(rwac, 'far', 2, 10).name("RWAC distance area (m)").step(0.1);
+	ccFolder.add(hrc, 'far', 2, 10).name("HRC distance area (m)").step(0.1);
+
+	function panPlan(start, stop, numPics){
+		// take start and stop angles, and divide by number of pics to get a spacing
+		var sep = Math.round((stop - start) / numPics);
+		// console.log()
+		// panGroup.rotation.y = start;
+		// var lwacMatrix = lwac.matrixWorldInverse;
+
+		// const geometry = new THREE.PlaneGeometry( 1, 1 );
+		// const material = new THREE.MeshBasicMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
+		// const plane = new THREE.Mesh( geometry, material );
+		// plane.setRotationFromMatrix(lwacMatrix);
+		// plane.updateMatrixWorld();
+		// // console.log(plane.matrix)
+		// scene.add( plane );
+	}	
+
+	const psFolder = gui.addFolder( 'Pan Planner' );
+
+	var panSpec = { start: 1, stop: 1, numPics: 2 };
+
+	psFolder.add(panSpec, 'start', 0, Math.PI, 0.01 );
+	psFolder.add(panSpec, 'stop', 0, Math.PI, 0.01 );
+	psFolder.add(panSpec, 'numPics', 2, 30, 1 );
+	// if any of them change, update the pan planner
+	psFolder.onChange( event => {
+		panPlan(event.object.start, event.object.stop, event.object.numPics);
+	} );
 
 	function resizeRendererToDisplaySize( renderer ) {
 		const canvas = renderer.domElement;
