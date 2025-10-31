@@ -11,6 +11,7 @@ function main() {
 
 	const canvas = document.querySelector( '#c' );
 	const renderer = new THREE.WebGLRenderer( { antialias: true, canvas } );
+	const gui = new GUI();
 
 	// main viewing camera
 	const fov = 45;
@@ -95,17 +96,24 @@ function main() {
 
 	// import the basic rover model
 	const loaderglb = new GLTFLoader();
-	loaderglb.load( 'assets/rfr.glb', function ( gltf ) {
+	loaderglb.load( 'assets/rfr_body.glb', function ( gltf ) {
 		scene.add( gltf.scene );
 		rfrBody = gltf.scene.getObjectByName("body");
-		rfrMastHead = gltf.scene.getObjectByName("masthead");
-		rfrMastHead.position.set(0, 0.05, 0.03);
-		tiltGroup.add(rfrMastHead);
 
 		// useful for debuggung - get all the available named items
 		// gltf.scene.traverse(function(child){
 		//     console.log(child.name);
 		// });
+
+	}, undefined, function ( error ) {
+		console.error( error );
+	});
+	// import the basic rover model
+	loaderglb.load( 'assets/rfr_masthead.glb', function ( gltf ) {
+		scene.add( gltf.scene );
+		rfrMastHead = gltf.scene.getObjectByName("masthead");
+		// rfrMastHead.position.set(0, 0.02, 0);
+		tiltGroup.add(rfrMastHead);
 
 	}, undefined, function ( error ) {
 		console.error( error );
@@ -127,11 +135,11 @@ function main() {
 	const hrc = new THREE.PerspectiveCamera( 4.88, 1, 0.98, 3 );
 	const wacposx = 0.25;
 	const hrcposx = 0.154;
-	const pcposy = 0.2;
+	const pcposy = 0.155;
 	const pcposz = -0.02;
-	lwac.position.set( -wacposx, pcposy, 0 );
-	rwac.position.set( wacposx, pcposy, 0 );
-	hrc.position.set( hrcposx, pcposy, 0 );
+	lwac.position.set( -wacposx, pcposy, pcposz );
+	rwac.position.set( wacposx, pcposy, pcposz );
+	hrc.position.set( hrcposx, pcposy, pcposz );
 	const toeinrad = 0.08;
 	lwac.rotateY(-toeinrad);
 	rwac.rotateY(toeinrad);
@@ -143,6 +151,10 @@ function main() {
 	scene.add(lwacVis);
 	scene.add(rwacVis);
 	scene.add(hrcVis);
+	// start them not visible
+	lwacVis.visible = false;
+	rwacVis.visible = false;
+	hrcVis.visible = false;
 
 	// add them to the tilt group
 	tiltGroup.add(lwac);
@@ -150,29 +162,89 @@ function main() {
 	tiltGroup.add(hrc);
 
 	// then pan group
-	panGroup.position.set(0, 1.8, -0.52);
+	panGroup.position.set(0, 1.9, -0.5);
 	panGroup.add(tiltGroup);
 
 	// finally, add it all to the scene
 	scene.add(panGroup);
 
-	const gui = new GUI();
+	// panning and tilting from degrees
+	var panAngle = { value: 0 };
+	function setPan(angle){
+		// take degrees and turn to rads
+		panGroup.rotation.y = degToRad(angle);
+		panAngle.value = angle;
+	}
+	var tiltAngle = { value: 0 };
+	function setTilt(angle){
+		// take degrees and turn to rads, note that tilt is opposite direction
+		tiltGroup.rotation.x = -1 * degToRad(angle);
+		tiltAngle.value = angle;
+	}
+	
+	var ptuPos = {
+		pctRwac: function(){ setPan(-43.5); setTilt(65.75); },
+		pctLwac: function(){ setPan(-70); setTilt(65.75); },
+		parkPanCam: function(){ setPan(0); setTilt(60 ); },
+		homePTU: function(){ setPan(0); setTilt(0); },
+	};
+
 	const ptucFolder = gui.addFolder( 'PTU Controls' ).close();
-	ptucFolder.add(tiltGroup.rotation, 'x', -Math.PI/2, Math.PI/2).name("Tilt").listen();
-	ptucFolder.add(panGroup.rotation, 'y', -Math.PI, Math.PI).name("Pan").listen();
-	ptucFolder.add(lwacVis, 'visible').name("Show LWAC");
-	ptucFolder.add(rwacVis, 'visible').name("Show RWAC");
-	ptucFolder.add(hrcVis, 'visible').name("Show HRC");
+	ptucFolder.add(panAngle, 'value').name("Pan (deg)").min(-180).max(180).onChange( value => { setPan(value) }).listen();
+	ptucFolder.add(tiltAngle, 'value').name("Tilt (deg)").min(-90).max(90).onChange( value => { setTilt(value) }).listen();
+	ptucFolder.add(ptuPos, 'pctRwac').name("RWAC PCT");
+	ptucFolder.add(ptuPos, 'pctLwac').name("LWAC PCT");
+	ptucFolder.add(ptuPos, 'parkPanCam').name("Park PanCam");
+	ptucFolder.add(ptuPos, 'homePTU').name("Home PTU");
 
 	const ccFolder = gui.addFolder( 'Camera Controls' ).close();
 	ccFolder.add(lwac, 'far', 2, 10).name("LWAC distance area (m)").step(0.1);
 	ccFolder.add(rwac, 'far', 2, 10).name("RWAC distance area (m)").step(0.1);
 	ccFolder.add(hrc, 'far', 2, 10).name("HRC distance area (m)").step(0.1);
+	ccFolder.add(lwacVis, 'visible').name("Show LWAC");
+	ccFolder.add(rwacVis, 'visible').name("Show RWAC");
+	ccFolder.add(hrcVis, 'visible').name("Show HRC");
 
 	function panPlan(start, stop, numPics){
 		// take start and stop angles, and divide by number of pics to get a spacing
 		var sep = Math.round((stop - start) / numPics);
-		// console.log()
+		// console.log(lwac.matrixWorld)
+		// console.log(lwacVis.geometry)
+
+		// var vector = new THREE.Vector3();
+		// var zNearPlane = -1;
+		// var zFarPlane = 1;
+		// vector.set( -1, 1, zNearPlane ).unproject( lwac );// Top left corner
+		// console.log(vector)
+		// vector.set( 1, 1, zNearPlane ).unproject( lwac );// Top right corner
+		// console.log(vector)
+		// vector.set( -1, -1, zNearPlane ).unproject( lwac );// // Bottom left corner
+		// console.log(vector)
+		// vector.set( 1, -1, zNearPlane ).unproject( lwac );// Bottom right corner
+		// console.log(vector)
+
+		var v = new THREE.Vector3();
+	    lwac.getWorldDirection( v )
+
+	    var lwacpos = new THREE.Vector3();
+	    lwac.getWorldPosition( lwacpos )
+	    console.log(lwacpos)
+
+	    const geometry = new THREE.SphereGeometry( 0.1, 32, 16 );
+		const material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
+		const sphere = new THREE.Mesh( geometry, material );
+	    sphere.position.copy( lwacpos );
+	    sphere.position.addScaledVector( v, lwac.far )
+		scene.add( sphere );
+
+	 //    var fullBox = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.01), new THREE.MeshLambertMaterial({
+	 //      color: "blue"
+	 //    }));
+	 //    fullBox.rotation.copy( lwac.rotation );
+	 //    fullBox.position.copy( lwac.position );
+	 //    fullBox.position.addScaledVector( v, 1 )
+	 //    scene.add(fullBox)
+
 		// panGroup.rotation.y = start;
 		// var lwacMatrix = lwac.matrixWorldInverse;
 
