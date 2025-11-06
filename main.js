@@ -8,7 +8,6 @@ function degToRad(deg){
 }
 
 function main() {
-
 	const canvas = document.querySelector( '#c' );
 	const renderer = new THREE.WebGLRenderer( { antialias: true, canvas } );
 	const gui = new GUI();
@@ -99,31 +98,18 @@ function main() {
 	loaderglb.load( 'assets/rfr_body.glb', function ( gltf ) {
 		scene.add( gltf.scene );
 		rfrBody = gltf.scene.getObjectByName("body");
-
-		// useful for debuggung - get all the available named items
-		// gltf.scene.traverse(function(child){
-		//     console.log(child.name);
-		// });
-
 	}, undefined, function ( error ) {
 		console.error( error );
 	});
-	// import the basic rover model
+	// import the basic PanCam model
 	loaderglb.load( 'assets/rfr_masthead.glb', function ( gltf ) {
 		scene.add( gltf.scene );
 		rfrMastHead = gltf.scene.getObjectByName("masthead");
-		// rfrMastHead.position.set(0, 0.02, 0);
 		tiltGroup.add(rfrMastHead);
 
 	}, undefined, function ( error ) {
 		console.error( error );
 	});
-
-	// helper cube shows the ptu - for debugging
-	// const geometry = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
-	// const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-	// const cube = new THREE.Mesh( geometry, material );
-	// tiltGroup.add( cube );
 
 	// WACs and HRC camera setup and relative positioning
 	const wacfov = 38;
@@ -169,24 +155,25 @@ function main() {
 	scene.add(panGroup);
 
 	// panning and tilting from degrees
-	var panAngle = { value: 0 };
+	let panAngle = { value: 0 };
 	function setPan(angle){
 		// take degrees and turn to rads
 		panGroup.rotation.y = degToRad(angle);
 		panAngle.value = angle;
 	}
-	var tiltAngle = { value: 0 };
+	let tiltAngle = { value: 0 };
 	function setTilt(angle){
 		// take degrees and turn to rads, note that tilt is opposite direction
 		tiltGroup.rotation.x = -1 * degToRad(angle);
 		tiltAngle.value = angle;
 	}
 	
-	var ptuPos = {
+	let ptuPos = {
 		pctRwac: function(){ setPan(-43.5); setTilt(65.75); },
 		pctLwac: function(){ setPan(-70); setTilt(65.75); },
 		parkPanCam: function(){ setPan(0); setTilt(60 ); },
 		homePTU: function(){ setPan(0); setTilt(0); },
+		// pancamView: function(){  },
 	};
 
 	const ptucFolder = gui.addFolder( 'PTU Controls' ).close();
@@ -196,6 +183,7 @@ function main() {
 	ptucFolder.add(ptuPos, 'pctLwac').name("LWAC PCT");
 	ptucFolder.add(ptuPos, 'parkPanCam').name("Park PanCam");
 	ptucFolder.add(ptuPos, 'homePTU').name("Home PTU");
+	// ptucFolder.add(ptuPos,'pancamView').name("View from PTU"); // TODO?
 
 	const ccFolder = gui.addFolder( 'Camera Controls' ).close();
 	ccFolder.add(lwac, 'far', 2, 10).name("LWAC distance area (m)").step(0.1);
@@ -205,70 +193,158 @@ function main() {
 	ccFolder.add(rwacVis, 'visible').name("Show RWAC");
 	ccFolder.add(hrcVis, 'visible').name("Show HRC");
 
-	function panPlan(start, stop, numPics){
-		// take start and stop angles, and divide by number of pics to get a spacing
-		var sep = Math.round((stop - start) / numPics);
-		// console.log(lwac.matrixWorld)
-		// console.log(lwacVis.geometry)
+	function addPanoImg(position, direction, group, camID){
+		// get far vector and setup for correct camera
+		let facingPos = panGroup.position;
+		let farVec = lwac.far;
+		let x = 1.4, y = 1.4;
+		if(camID == "lwac"){ 
+			farVec = rwac.far; 
+		}
+		else if(camID == "rwac"){ 
+			farVec = rwac.far; 
+		}
+		else if(camID == "hrc"){ 
+			farVec = hrc.far; 
+			x = 0.25;
+			y = 0.25;
+		}
 
-		// var vector = new THREE.Vector3();
-		// var zNearPlane = -1;
-		// var zFarPlane = 1;
-		// vector.set( -1, 1, zNearPlane ).unproject( lwac );// Top left corner
-		// console.log(vector)
-		// vector.set( 1, 1, zNearPlane ).unproject( lwac );// Top right corner
-		// console.log(vector)
-		// vector.set( -1, -1, zNearPlane ).unproject( lwac );// // Bottom left corner
-		// console.log(vector)
-		// vector.set( 1, -1, zNearPlane ).unproject( lwac );// Bottom right corner
-		// console.log(vector)
+		// take a position and generate an element (pic) for the panorama
+		const geometry = new THREE.PlaneGeometry( x, y );
+		// const material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
+		// const material = new THREE.MeshBasicMaterial( {color: 0x666666, side: THREE.DoubleSide} );
+		const material = new THREE.MeshBasicMaterial( {color: 0x666688, side: THREE.DoubleSide, transparent: true, opacity: 0.5} ); // wireframe: true
+		const image = new THREE.Mesh( geometry, material );
+	    image.position.copy( position );
+	    image.position.addScaledVector( direction, farVec );
+	    image.lookAt( facingPos );
+	    image.name = "panoElement";
+		group.add( image );
+	}
 
-		var v = new THREE.Vector3();
-	    lwac.getWorldDirection( v )
+	let panoElements = new THREE.Object3D()
+	panoElements.name = "panoElements";
 
-	    var lwacpos = new THREE.Vector3();
-	    lwac.getWorldPosition( lwacpos )
-	    console.log(lwacpos)
+	function panPlan(start, stop, numPics, useLwac, useRwac, useHrc){
+		let camDirection = new THREE.Vector3();
+		let camPosition = new THREE.Vector3();
 
-	    const geometry = new THREE.SphereGeometry( 0.1, 32, 16 );
-		const material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
-		const sphere = new THREE.Mesh( geometry, material );
-	    sphere.position.copy( lwacpos );
-	    sphere.position.addScaledVector( v, lwac.far )
-		scene.add( sphere );
+	    // if there are any in the middle, deal with them
+	    if((numPics - 2) > 0){
+	    	// take start and stop angles, and divide by number of pics to get a spacing
+			let sep = (stop - start) / (numPics-1); 
+	    	let currPan = start;
+	    	for(let p = 0; p < numPics; p++){
+	    		if(p>0){ currPan += sep; }
+				setPan(currPan);
+				if(useLwac){
+					lwac.getWorldDirection( camDirection );
+				    lwac.getWorldPosition( camPosition );
+				    addPanoImg(camPosition, camDirection, panoElements, "lwac");
+				}
+				if(useRwac){
+					rwac.getWorldDirection( camDirection );
+				    rwac.getWorldPosition( camPosition );
+				    addPanoImg(camPosition, camDirection, panoElements, "rwac");
+				}
+				if (useHrc){
+					hrc.getWorldDirection( camDirection );
+				    hrc.getWorldPosition( camPosition );
+				    addPanoImg(camPosition, camDirection, panoElements, "hrc");
+				}
+				
+			}
+	    }
+	   	else {
+	   		// otherwise do first and last pics only (min 2)
+			
+			// pan to start pos and add pic
+			setPan(start); 
+			if(useLwac){
+				lwac.getWorldDirection( camDirection );
+			    lwac.getWorldPosition( camPosition );
+			    addPanoImg(camPosition, camDirection, panoElements, "lwac");
+			}
+			if(useRwac){
+				rwac.getWorldDirection( camDirection );
+			    rwac.getWorldPosition( camPosition );
+			    addPanoImg(camPosition, camDirection, panoElements, "rwac");
+			}
+			if (useHrc){
+				hrc.getWorldDirection( camDirection );
+			    hrc.getWorldPosition( camPosition );
+			    addPanoImg(camPosition, camDirection, panoElements, "hrc");
+			}
 
-	 //    var fullBox = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.01), new THREE.MeshLambertMaterial({
-	 //      color: "blue"
-	 //    }));
-	 //    fullBox.rotation.copy( lwac.rotation );
-	 //    fullBox.position.copy( lwac.position );
-	 //    fullBox.position.addScaledVector( v, 1 )
-	 //    scene.add(fullBox)
+			// no point adding two images if no movement (despite min being 2)
+			if(stop != start){
+				// pan to stop pos, add pic
+				setPan(stop);
+				if(useLwac){
+					lwac.getWorldDirection( camDirection );
+				    lwac.getWorldPosition( camPosition );
+				    addPanoImg(camPosition, camDirection, panoElements, "lwac");
+				}
+				if(useRwac){
+					rwac.getWorldDirection( camDirection );
+				    rwac.getWorldPosition( camPosition );
+				    addPanoImg(camPosition, camDirection, panoElements, "rwac");
+				}
+				if (useHrc){
+					hrc.getWorldDirection( camDirection );
+				    hrc.getWorldPosition( camPosition );
+				    addPanoImg(camPosition, camDirection, panoElements, "hrc");
+				}
+			}			
+	   	}
 
-		// panGroup.rotation.y = start;
-		// var lwacMatrix = lwac.matrixWorldInverse;
-
-		// const geometry = new THREE.PlaneGeometry( 1, 1 );
-		// const material = new THREE.MeshBasicMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
-		// const plane = new THREE.Mesh( geometry, material );
-		// plane.setRotationFromMatrix(lwacMatrix);
-		// plane.updateMatrixWorld();
-		// // console.log(plane.matrix)
-		// scene.add( plane );
+	   	// reset pan to centre
+	    setPan(0);
+	    scene.add(panoElements);
 	}	
 
-	const psFolder = gui.addFolder( 'Pan Planner' );
+	const psFolder = gui.addFolder( 'Pan Panorama Planner (Fixed Tilt)' );
 
-	var panSpec = { start: 1, stop: 1, numPics: 2 };
+	let panSpec = { 
+		start: 0, 
+		stop: 0, 
+		numPics: 2,
+		// overlap: 0,
+		lwac: false,
+		rwac: false,
+		hrc: false,
+		panPlan: function(){ 
+			panPlan(this.start, this.stop, this.numPics, this.lwac, this.rwac, this.hrc); 
+			// TODO work out percentage overlap
+			// this.overlap = (1 - (this.stop - this.start))*100;
+		},
+		clearPanPlan: function(){ 
+			// collect all the pics and clear them, reset variables
+			this.start = 0;
+			this.stop = 0;
+			this.numPics = 2;
+			// this.overlap = 0;
+			this.lwac = false;
+			this.rwac = false;
+			this.hrc = false;
+			if(scene.getObjectByName("panoElements")){
+				panoElements.clear();
+			}
+		},
+	};
 
-	psFolder.add(panSpec, 'start', 0, Math.PI, 0.01 );
-	psFolder.add(panSpec, 'stop', 0, Math.PI, 0.01 );
-	psFolder.add(panSpec, 'numPics', 2, 30, 1 );
-	// if any of them change, update the pan planner
-	psFolder.onChange( event => {
-		panPlan(event.object.start, event.object.stop, event.object.numPics);
-	} );
-
+	psFolder.add(panSpec, 'start').name('Pan Start (deg)').min(-180).max(180).listen();
+	psFolder.add(panSpec, 'stop',).name('Pan Stop (deg)').min(-180).max(180).listen();
+	psFolder.add(panSpec, 'numPics', 2, 30, 1 ).name('Number of Images').listen();
+	// psFolder.add(panSpec, 'overlap').name("Approx overlap (%)").disable().listen();
+	psFolder.add(tiltAngle, 'value').name("Tilt (deg)").min(-90).max(90).onChange( value => { setTilt(value) }).listen();
+	psFolder.add(panSpec, 'lwac').name("Use LWAC").listen();
+	psFolder.add(panSpec, 'rwac').name("Use RWAC").listen();
+	psFolder.add(panSpec, 'hrc').name("Use HRC").listen();
+	psFolder.add(panSpec, 'panPlan').name("Plan Pano");
+	psFolder.add(panSpec, 'clearPanPlan').name("Clear Pano Plan");
+	
 	function resizeRendererToDisplaySize( renderer ) {
 		const canvas = renderer.domElement;
 		const width = canvas.clientWidth;
@@ -296,7 +372,6 @@ function main() {
 
 		renderer.render( scene, camera );
 		requestAnimationFrame( render );
-		// ptuRange()
 	}
 	requestAnimationFrame( render );
 }
