@@ -203,7 +203,7 @@ function main() {
 		let material = new THREE.MeshBasicMaterial( {color: 0x886666, side: THREE.DoubleSide, transparent: true, opacity: 0.4} );
 		
 		if(camID == "lwac"){ 
-			farVec = rwac.far; 
+			farVec = lwac.far; 
 		}
 		else if(camID == "rwac"){ 
 			farVec = rwac.far;
