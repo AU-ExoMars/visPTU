@@ -118,7 +118,7 @@ function main() {
 	const wacfar = 2;
 	const lwac = new THREE.PerspectiveCamera( wacfov, pcaspect, wacnear, wacfar );
 	const rwac = new THREE.PerspectiveCamera( wacfov, pcaspect, wacnear, wacfar );
-	const hrc = new THREE.PerspectiveCamera( 4.88, 1, 0.98, 3 );
+	const hrc = new THREE.PerspectiveCamera( 4.88, 1, 0.98, 2.02 );
 	const wacposx = 0.25;
 	const hrcposx = 0.154;
 	const pcposy = 0.155;
@@ -198,13 +198,19 @@ function main() {
 		let facingPos = panGroup.position;
 		let farVec = lwac.far;
 		let x = 1.4, y = 1.4;
+
+		// materials: red = lwac, green = rwac, blue = hrc
+		let material = new THREE.MeshBasicMaterial( {color: 0x886666, side: THREE.DoubleSide, transparent: true, opacity: 0.4} );
+		
 		if(camID == "lwac"){ 
 			farVec = rwac.far; 
 		}
 		else if(camID == "rwac"){ 
-			farVec = rwac.far; 
+			farVec = rwac.far;
+			material = new THREE.MeshBasicMaterial( {color: 0x668866, side: THREE.DoubleSide, transparent: true, opacity: 0.4} );
 		}
-		else if(camID == "hrc"){ 
+		else if(camID == "hrc"){
+			material = new THREE.MeshBasicMaterial( {color: 0x666688, side: THREE.DoubleSide, transparent: true, opacity: 0.4} );
 			farVec = hrc.far; 
 			x = 0.25;
 			y = 0.25;
@@ -212,9 +218,6 @@ function main() {
 
 		// take a position and generate an element (pic) for the panorama
 		const geometry = new THREE.PlaneGeometry( x, y );
-		// const material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
-		// const material = new THREE.MeshBasicMaterial( {color: 0x666666, side: THREE.DoubleSide} );
-		const material = new THREE.MeshBasicMaterial( {color: 0x666688, side: THREE.DoubleSide, transparent: true, opacity: 0.5} ); // wireframe: true
 		const image = new THREE.Mesh( geometry, material );
 	    image.position.copy( position );
 	    image.position.addScaledVector( direction, farVec );
@@ -316,8 +319,7 @@ function main() {
 		hrc: false,
 		panPlan: function(){ 
 			panPlan(this.start, this.stop, this.numPics, this.lwac, this.rwac, this.hrc); 
-			// TODO work out percentage overlap
-			// this.overlap = (1 - (this.stop - this.start))*100;
+			// TODO work out percentage overlap??
 		},
 		clearPanPlan: function(){ 
 			// collect all the pics and clear them, reset variables
@@ -350,9 +352,7 @@ function main() {
 		const width = canvas.clientWidth;
 		const height = canvas.clientHeight;
 		const needResize = canvas.width !== width || canvas.height !== height;
-		if ( needResize ) {
-			renderer.setSize( width, height, false );
-		}
+		if ( needResize ) { renderer.setSize( width, height, false ); }
 		return needResize;
 	}
 
