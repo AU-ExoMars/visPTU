@@ -6,18 +6,38 @@
     <title>PTU Vis Helper</title>
       <style>
         html, body {
-            margin: 0;
-            height: 100%;
+          height: 100%;
+          margin: 0;
+          max-width: 100vw;
+          display: flex;
+          flex-direction: column;
+        }
+        #pageContainer {
+          display: flex;
+          width: 100vw;
+          height: 100vh;
         }
         #c {
-            width: 100%;
-            height: 100%;
-            display: block;
+          flex-basis: 100%;
+          height: 100%;
+          min-width: 500px;
         }
+        /*#panel {
+          display: flex;
+          flex-direction: column;
+          width: 250px;
+          flex: 0 0 auto;
+          overflow: auto;
+          margin: 1rem;
+        }*/
+
       </style>
   </head>
   <body>
     <script type="module" src="/main.js"></script>
-    <canvas id="c"></canvas>
+    <div id="pageContainer">
+      <canvas id="c"></canvas>
+      <div id="panel"></div>
+    </div>
   </body>
 </html>

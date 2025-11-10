@@ -10,7 +10,11 @@ function degToRad(deg){
 function main() {
 	const canvas = document.querySelector( '#c' );
 	const renderer = new THREE.WebGLRenderer( { antialias: true, canvas } );
-	const gui = new GUI();
+	const gui = new GUI( { 
+		// container: document.getElementById( 'panel' ), 
+		title: "VisPTU Control Panel",
+		// closeFolders: true,
+	} );
 
 	// main viewing camera
 	const fov = 45;
@@ -143,7 +147,7 @@ function main() {
 	// NavCam
 	const navfov = 45;
 	const navaspect = 1; 
-	const navnear = 2;
+	const navnear = 1.99;
 	const navfar = 5;
 	const navposx = 0.05;
 	const lnav = new THREE.PerspectiveCamera( navfov, navaspect, navnear, navfar );
@@ -209,7 +213,7 @@ function main() {
 		// pancamView: function(){  },
 	};
 
-	const ptucFolder = gui.addFolder( 'PTU Controls' ).close();
+	const ptucFolder = gui.addFolder( 'PTU Controls' );
 	ptucFolder.add(panAngle, 'value').name("Pan (deg)").min(-180).max(180).onChange( value => { setPan(value) }).listen();
 	ptucFolder.add(tiltAngle, 'value').name("Tilt (deg)").min(-90).max(90).onChange( value => { setTilt(value) }).listen();
 	ptucFolder.add(ptuPos, 'pctRwac').name("RWAC PCT");
@@ -218,13 +222,18 @@ function main() {
 	ptucFolder.add(ptuPos, 'homePTU').name("Home PTU");
 	// ptucFolder.add(ptuPos,'pancamView').name("View from PTU"); // TODO?
 
-	let navcams = {	visible: false, };
+	let navcams = {	
+		visible: false, 
+		viewFar: navfar,
+	};
 
-	const ccFolder = gui.addFolder( 'Camera Controls' )
-	// .close();
-	ccFolder.add(lwac, 'far', 2, 10).name("LWAC distance area (m)").step(0.1);
-	ccFolder.add(rwac, 'far', 2, 10).name("RWAC distance area (m)").step(0.1);
-	ccFolder.add(hrc, 'far', 2, 10).name("HRC distance area (m)").step(0.1);
+	const ccFolder = gui.addFolder( 'Camera Controls' );
+	const viewStepSize = 0.1, viewMin = 2, viewMax = 10;
+	ccFolder.add(lwac, 'far', viewMin, viewMax).name("LWAC distance area (m)").step(viewStepSize);
+	ccFolder.add(rwac, 'far', viewMin, viewMax).name("RWAC distance area (m)").step(viewStepSize);
+	ccFolder.add(hrc, 'far', viewMin, viewMax).name("HRC focus distance (m)").step(viewStepSize);
+	ccFolder.add(enfys, 'far', viewMin, viewMax).name("Enfys focus distance (m)").step(viewStepSize);
+	ccFolder.add(navcams, 'viewFar').name("NavCams distance area (m)").step(viewStepSize).min(viewMin).max(viewMax).onChange( value => { lnav.far = value; rnav.far = value });
 	ccFolder.add(lwacVis, 'visible').name("Show LWAC");
 	ccFolder.add(rwacVis, 'visible').name("Show RWAC");
 	ccFolder.add(hrcVis, 'visible').name("Show HRC");
@@ -407,10 +416,16 @@ function main() {
 		lwac.updateProjectionMatrix();
 		rwac.updateProjectionMatrix();
 		hrc.updateProjectionMatrix();
+		enfys.updateProjectionMatrix();
+		lnav.updateProjectionMatrix();
+		rnav.updateProjectionMatrix();
 
 		lwacVis.update();
 		rwacVis.update();
 		hrcVis.update();
+		enfysVis.update();
+		lnavVis.update();
+		rnavVis.update();
 
 		renderer.render( scene, camera );
 		requestAnimationFrame( render );
