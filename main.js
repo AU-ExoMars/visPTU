@@ -87,7 +87,6 @@ function main() {
 		scene.add( mesh );
 	}	
 
-
 	// create PanCam
 	// pan and tilt managed separately to keep rotation clean
 	const tiltGroup = new THREE.Group();
@@ -116,9 +115,12 @@ function main() {
 	const pcaspect = 1; 
 	const wacnear = 1;
 	const wacfar = 2;
+	const hrcfov = 4.88;
+	const hrcnear = 0.98;
+	const hrcfar = 2.02;
 	const lwac = new THREE.PerspectiveCamera( wacfov, pcaspect, wacnear, wacfar );
 	const rwac = new THREE.PerspectiveCamera( wacfov, pcaspect, wacnear, wacfar );
-	const hrc = new THREE.PerspectiveCamera( 4.88, 1, 0.98, 2.02 );
+	const hrc = new THREE.PerspectiveCamera( hrcfov, pcaspect, hrcnear, hrcfar );
 	const wacposx = 0.25;
 	const hrcposx = 0.154;
 	const pcposy = 0.155;
@@ -130,22 +132,53 @@ function main() {
 	lwac.rotateY(-toeinrad);
 	rwac.rotateY(toeinrad);
 
+	// Enfys
+	const enfysfov = 1;
+	const enfysnear = 0.98;
+	const enfysfar = 2.02;
+	const enfysposy = pcposy-0.07;
+	const enfys = new THREE.PerspectiveCamera( enfysfov, pcaspect, enfysnear, enfysfar );
+	enfys.position.set( hrcposx, enfysposy, pcposz );
+
+	// NavCam
+	const navfov = 45;
+	const navaspect = 1; 
+	const navnear = 2;
+	const navfar = 5;
+	const navposx = 0.05;
+	const lnav = new THREE.PerspectiveCamera( navfov, navaspect, navnear, navfar );
+	const rnav = new THREE.PerspectiveCamera( navfov, navaspect, navnear, navfar );
+	lnav.position.set( -navposx, pcposy, pcposz );
+	rnav.position.set( navposx, pcposy, pcposz );
+
 	// create helpers to do the visualisation
 	const lwacVis = new THREE.CameraHelper(lwac);
 	const rwacVis = new THREE.CameraHelper(rwac);
 	const hrcVis = new THREE.CameraHelper(hrc);
+	const enfysVis = new THREE.CameraHelper(enfys);
+	const lnavVis = new THREE.CameraHelper(lnav);
+	const rnavVis = new THREE.CameraHelper(rnav);
 	scene.add(lwacVis);
 	scene.add(rwacVis);
 	scene.add(hrcVis);
+	scene.add(enfysVis);
+	scene.add(lnavVis);
+	scene.add(rnavVis);
 	// start them not visible
 	lwacVis.visible = false;
 	rwacVis.visible = false;
 	hrcVis.visible = false;
+	enfysVis.visible = false;
+	lnavVis.visible = false;
+	rnavVis.visible = false;
 
 	// add them to the tilt group
 	tiltGroup.add(lwac);
 	tiltGroup.add(rwac);
 	tiltGroup.add(hrc);
+	tiltGroup.add(enfys);
+	tiltGroup.add(lnav);
+	tiltGroup.add(rnav);
 
 	// then pan group
 	panGroup.position.set(0, 1.9, -0.5);
@@ -185,39 +218,48 @@ function main() {
 	ptucFolder.add(ptuPos, 'homePTU').name("Home PTU");
 	// ptucFolder.add(ptuPos,'pancamView').name("View from PTU"); // TODO?
 
-	const ccFolder = gui.addFolder( 'Camera Controls' ).close();
+	let navcams = {	visible: false, };
+
+	const ccFolder = gui.addFolder( 'Camera Controls' )
+	// .close();
 	ccFolder.add(lwac, 'far', 2, 10).name("LWAC distance area (m)").step(0.1);
 	ccFolder.add(rwac, 'far', 2, 10).name("RWAC distance area (m)").step(0.1);
 	ccFolder.add(hrc, 'far', 2, 10).name("HRC distance area (m)").step(0.1);
 	ccFolder.add(lwacVis, 'visible').name("Show LWAC");
 	ccFolder.add(rwacVis, 'visible').name("Show RWAC");
 	ccFolder.add(hrcVis, 'visible').name("Show HRC");
+	ccFolder.add(enfysVis, 'visible').name("Show Enfys");
+	ccFolder.add(navcams, 'visible').name("Show NavCams").onChange( value => { lnavVis.visible = value; rnavVis.visible = value });
 
 	function addPanoImg(position, direction, group, camID){
 		// get far vector and setup for correct camera
-		let facingPos = panGroup.position;
+		let facingPos = new THREE.Vector3();
 		let farVec = lwac.far;
-		let x = 1.4, y = 1.4;
+		let imgSize = new THREE.Vector2();
 
 		// materials: red = lwac, green = rwac, blue = hrc
 		let material = new THREE.MeshBasicMaterial( {color: 0x886666, side: THREE.DoubleSide, transparent: true, opacity: 0.4} );
 		
 		if(camID == "lwac"){ 
-			farVec = lwac.far; 
+			farVec = lwac.far;
+			lwac.getViewSize(farVec, imgSize);
+			lwac.getWorldPosition(facingPos);
 		}
 		else if(camID == "rwac"){ 
 			farVec = rwac.far;
+			rwac.getViewSize(farVec, imgSize);
+			rwac.getWorldPosition(facingPos);
 			material = new THREE.MeshBasicMaterial( {color: 0x668866, side: THREE.DoubleSide, transparent: true, opacity: 0.4} );
 		}
 		else if(camID == "hrc"){
 			material = new THREE.MeshBasicMaterial( {color: 0x666688, side: THREE.DoubleSide, transparent: true, opacity: 0.4} );
 			farVec = hrc.far; 
-			x = 0.25;
-			y = 0.25;
+			hrc.getViewSize(farVec, imgSize);
+			hrc.getWorldPosition(facingPos);
 		}
 
 		// take a position and generate an element (pic) for the panorama
-		const geometry = new THREE.PlaneGeometry( x, y );
+		const geometry = new THREE.PlaneGeometry( imgSize.x, imgSize.y );
 		const image = new THREE.Mesh( geometry, material );
 	    image.position.copy( position );
 	    image.position.addScaledVector( direction, farVec );
