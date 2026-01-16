@@ -349,7 +349,7 @@ function main() {
 	    image.lookAt( facingPos );
 	    image.name = "panoElement";
 		group.add( image );
-		imageListFolder.add();
+		// imageListFolder.add();
 	}
 
 	let panoElements = new THREE.Object3D()
@@ -445,10 +445,10 @@ function main() {
 		rwac: false,
 		hrc: false,
 		panPlan: function(){ 
-			imageListFolder.show();
+			// imageListFolder.show();
 			panPlan(this.start, this.stop, this.numPics, this.lwac, this.rwac, this.hrc); 
 			// TODO work out percentage overlap??
-			imageListFolder.add( myObject, 'myNumber', { Label1: 0, Label2: 1, Label3: 2 } );
+			// imageListFolder.add( myObject, 'myNumber', { Label1: 0, Label2: 1, Label3: 2 } );
 		},
 		clearPanPlan: function(){ 
 			// collect all the pics and clear them, reset variables
@@ -462,7 +462,7 @@ function main() {
 			if(scene.getObjectByName("panoElements")){
 				panoElements.clear();
 			}
-			imageListFolder.hide();
+			// imageListFolder.hide();
 		},
 	};
 
@@ -478,8 +478,8 @@ function main() {
 	psFolder.add(panSpec, 'clearPanPlan').name("Clear Pano Plan");
 	// psFolder.close();
 
-	const imageListFolder = psFolder.addFolder( 'Image List' );
-	imageListFolder.hide();
+	// const imageListFolder = psFolder.addFolder( 'Image List' );
+	// imageListFolder.hide();
 
 	// function updateImgList(){
 	// 	for()
