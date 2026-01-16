@@ -58,7 +58,7 @@ function main() {
 
 	// create the scene
 	const scene = new THREE.Scene();
-	let rfrBody, rfrMastHead;
+	let rfrBody, rfrMastHead, rfrDrillbox;
 
 	{
 		scene.background = new THREE.Color( 'grey' );
@@ -96,9 +96,11 @@ function main() {
 	const tiltGroup = new THREE.Group();
 	const panGroup = new THREE.Group();
 
+	const drillgroup = new THREE.Group();
+
 	// import the basic rover model
 	const loaderglb = new GLTFLoader();
-	loaderglb.load( 'assets/rfr_body.glb', function ( gltf ) {
+	loaderglb.load( 'assets/rfr_body_nodrill.glb', function ( gltf ) {
 		scene.add( gltf.scene );
 		rfrBody = gltf.scene.getObjectByName("body");
 	}, undefined, function ( error ) {
@@ -109,6 +111,15 @@ function main() {
 		scene.add( gltf.scene );
 		rfrMastHead = gltf.scene.getObjectByName("masthead");
 		tiltGroup.add(rfrMastHead);
+
+	}, undefined, function ( error ) {
+		console.error( error );
+	});
+	// import the drill model
+	loaderglb.load( 'assets/rfr_drill.glb', function ( gltf ) {
+		scene.add( gltf.scene );
+		rfrDrillbox = gltf.scene.getObjectByName("drillaxis");
+		drillgroup.add(rfrDrillbox);
 
 	}, undefined, function ( error ) {
 		console.error( error );
@@ -144,45 +155,81 @@ function main() {
 	const enfys = new THREE.PerspectiveCamera( enfysfov, pcaspect, enfysnear, enfysfar );
 	enfys.position.set( hrcposx, enfysposy, pcposz );
 
-	// NavCam
-	const navfov = 45;
-	const navaspect = 1; 
+	// CLUPI 2652 x 1768
+	const clupifov = 14;
+	const clupiaspect = 2652/1768;
+	const clupinear = 0.02;
+	const clupifar = 2;
+	// const clupiposy = 0;
+	const clupi = new THREE.PerspectiveCamera( clupifov, clupiaspect, clupinear, clupifar );
+	clupi.position.set( 0, 0, 0 );
+
+	// Nav & LocCam tilted down 18deg
+	const nlrad = degToRad(18);
+
+	// NavCam (1280x1024 5.3um pixels)
+	const navcamGroup = new THREE.Group();
+	const navfov = 68.5;
+	const navaspect = 1280/1024; 
 	const navnear = 1.99;
-	const navfar = 5;
-	const navposx = 0.05;
+	const navfar = 2;
+	const navposx = 0.075;
 	const lnav = new THREE.PerspectiveCamera( navfov, navaspect, navnear, navfar );
 	const rnav = new THREE.PerspectiveCamera( navfov, navaspect, navnear, navfar );
 	lnav.position.set( -navposx, pcposy, pcposz );
 	rnav.position.set( navposx, pcposy, pcposz );
+	navcamGroup.add(lnav);
+	navcamGroup.add(rnav);
+	navcamGroup.rotateX(-nlrad);
+
+	// LocCam
+	const loccamGroup = new THREE.Group();
+	const lloc = new THREE.PerspectiveCamera( navfov, navaspect, navnear, navfar );
+	const rloc = new THREE.PerspectiveCamera( navfov, navaspect, navnear, navfar );
+	lloc.position.set( -navposx, pcposy, pcposz );
+	rloc.position.set( navposx, pcposy, pcposz );
+	loccamGroup.add(lloc);
+	loccamGroup.add(rloc);
+	loccamGroup.position.set(0, 0.7, -0.5);
+	loccamGroup.rotateX(-nlrad);
+	scene.add(loccamGroup);
 
 	// create helpers to do the visualisation
 	const lwacVis = new THREE.CameraHelper(lwac);
 	const rwacVis = new THREE.CameraHelper(rwac);
 	const hrcVis = new THREE.CameraHelper(hrc);
 	const enfysVis = new THREE.CameraHelper(enfys);
+	const clupiVis = new THREE.CameraHelper(clupi);
 	const lnavVis = new THREE.CameraHelper(lnav);
 	const rnavVis = new THREE.CameraHelper(rnav);
+	const llocVis = new THREE.CameraHelper(lloc);
+	const rlocVis = new THREE.CameraHelper(rloc);
 	scene.add(lwacVis);
 	scene.add(rwacVis);
 	scene.add(hrcVis);
 	scene.add(enfysVis);
+	scene.add(clupiVis);
 	scene.add(lnavVis);
 	scene.add(rnavVis);
+	scene.add(llocVis);
+	scene.add(rlocVis);
 	// start them not visible
 	lwacVis.visible = false;
 	rwacVis.visible = false;
 	hrcVis.visible = false;
 	enfysVis.visible = false;
+	clupiVis.visible = false;
 	lnavVis.visible = false;
 	rnavVis.visible = false;
+	llocVis.visible = false;
+	rlocVis.visible = false;
 
 	// add them to the tilt group
 	tiltGroup.add(lwac);
 	tiltGroup.add(rwac);
 	tiltGroup.add(hrc);
 	tiltGroup.add(enfys);
-	tiltGroup.add(lnav);
-	tiltGroup.add(rnav);
+	tiltGroup.add(navcamGroup);
 
 	// then pan group
 	panGroup.position.set(0, 1.9, -0.5);
@@ -190,6 +237,13 @@ function main() {
 
 	// finally, add it all to the scene
 	scene.add(panGroup);
+
+	const drillGroupHeight = 0.44;
+	drillgroup.position.set(-0.2, drillGroupHeight, -0.5);
+	clupi.rotateY(degToRad(90));
+	clupi.position.set(0, -0.12, -0.12);
+	drillgroup.add(clupi);
+	scene.add(drillgroup);
 
 	// panning and tilting from degrees
 	let panAngle = { value: 0 };
@@ -203,6 +257,18 @@ function main() {
 		// take degrees and turn to rads, note that tilt is opposite direction
 		tiltGroup.rotation.x = -1 * degToRad(angle);
 		tiltAngle.value = angle;
+	}
+	// translation and rotation for drillbox
+	let drillAngle = { value: 0 };
+	function setDrillAngle(angle){
+		// take degrees and turn to rads
+		drillgroup.rotation.z = degToRad(angle);
+		drillAngle.value = angle;
+	}
+	let drillHeight = { value: 0 };
+	function setDrillHeight(height){
+		drillgroup.position.y = (height / 100) + drillGroupHeight;
+		drillHeight.value = height;
 	}
 	
 	let ptuPos = {
@@ -220,7 +286,13 @@ function main() {
 	ptucFolder.add(ptuPos, 'pctLwac').name("LWAC PCT");
 	ptucFolder.add(ptuPos, 'parkPanCam').name("Park PanCam");
 	ptucFolder.add(ptuPos, 'homePTU').name("Home PTU");
+	// ptucFolder.close();
 	// ptucFolder.add(ptuPos,'pancamView').name("View from PTU"); // TODO?
+
+	const dcFolder = gui.addFolder( 'Drill Controls' );
+	dcFolder.add(drillAngle, 'value').name("Drill Angle (deg)").min(0).max(140).onChange( value => { setDrillAngle(value) });
+	dcFolder.add(drillHeight, 'value').name("Drill Height (cm)").min(-10).max(20).onChange( value => { setDrillHeight(value) });
+	dcFolder.add(clupiVis, 'visible').name("Show CLUPI");
 
 	let navcams = {	
 		visible: false, 
@@ -239,6 +311,8 @@ function main() {
 	ccFolder.add(hrcVis, 'visible').name("Show HRC");
 	ccFolder.add(enfysVis, 'visible').name("Show Enfys");
 	ccFolder.add(navcams, 'visible').name("Show NavCams").onChange( value => { lnavVis.visible = value; rnavVis.visible = value });
+	ccFolder.add(navcams, 'visible').name("Show LocCams").onChange( value => { llocVis.visible = value; rlocVis.visible = value });
+	ccFolder.close();
 
 	function addPanoImg(position, direction, group, camID){
 		// get far vector and setup for correct camera
@@ -269,16 +343,18 @@ function main() {
 
 		// take a position and generate an element (pic) for the panorama
 		const geometry = new THREE.PlaneGeometry( imgSize.x, imgSize.y );
-		const image = new THREE.Mesh( geometry, material );
+		const image = new THREE.InstancedMesh( geometry, material, 1 );
 	    image.position.copy( position );
 	    image.position.addScaledVector( direction, farVec );
 	    image.lookAt( facingPos );
 	    image.name = "panoElement";
 		group.add( image );
+		imageListFolder.add();
 	}
 
 	let panoElements = new THREE.Object3D()
 	panoElements.name = "panoElements";
+	let panoElemArray = {};
 
 	function panPlan(start, stop, numPics, useLwac, useRwac, useHrc){
 		let camDirection = new THREE.Vector3();
@@ -369,8 +445,10 @@ function main() {
 		rwac: false,
 		hrc: false,
 		panPlan: function(){ 
+			imageListFolder.show();
 			panPlan(this.start, this.stop, this.numPics, this.lwac, this.rwac, this.hrc); 
 			// TODO work out percentage overlap??
+			imageListFolder.add( myObject, 'myNumber', { Label1: 0, Label2: 1, Label3: 2 } );
 		},
 		clearPanPlan: function(){ 
 			// collect all the pics and clear them, reset variables
@@ -384,6 +462,7 @@ function main() {
 			if(scene.getObjectByName("panoElements")){
 				panoElements.clear();
 			}
+			imageListFolder.hide();
 		},
 	};
 
@@ -397,7 +476,16 @@ function main() {
 	psFolder.add(panSpec, 'hrc').name("Use HRC").listen();
 	psFolder.add(panSpec, 'panPlan').name("Plan Pano");
 	psFolder.add(panSpec, 'clearPanPlan').name("Clear Pano Plan");
-	
+	// psFolder.close();
+
+	const imageListFolder = psFolder.addFolder( 'Image List' );
+	imageListFolder.hide();
+
+	// function updateImgList(){
+	// 	for()
+	// }
+
+
 	function resizeRendererToDisplaySize( renderer ) {
 		const canvas = renderer.domElement;
 		const width = canvas.clientWidth;
@@ -417,6 +505,7 @@ function main() {
 		rwac.updateProjectionMatrix();
 		hrc.updateProjectionMatrix();
 		enfys.updateProjectionMatrix();
+		clupi.updateProjectionMatrix();
 		lnav.updateProjectionMatrix();
 		rnav.updateProjectionMatrix();
 
@@ -424,6 +513,7 @@ function main() {
 		rwacVis.update();
 		hrcVis.update();
 		enfysVis.update();
+		clupiVis.update();
 		lnavVis.update();
 		rnavVis.update();
 
