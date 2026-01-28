@@ -3,10 +3,6 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from '/OrbitControls.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
-function degToRad(deg){
-	return deg * (Math.PI / 180)
-}
-
 function main() {
 	const canvas = document.querySelector( '#c' );
 	const renderer = new THREE.WebGLRenderer( { antialias: true, canvas } );
@@ -66,11 +62,17 @@ function main() {
 		// add lighting
 		const color = 0xFFFFFF;
 		const intensity = 3;
-		const light = new THREE.DirectionalLight( color, intensity );
-		light.position.set( 0, 10, 0 );
-		light.target.position.set( -5, 0, 0 );
-		scene.add( light );
-		scene.add( light.target );
+		const sunlight = new THREE.DirectionalLight( color, intensity );
+		sunlight.position.set( 0, 10, 0 );
+		sunlight.target.position.set( -5, 0, 0 );
+		scene.add( sunlight );
+		scene.add( sunlight.target );
+
+		const frontlight = new THREE.DirectionalLight( color, 1 );
+		frontlight.position.set( 0, 10, -10 );
+		frontlight.target.position.set( 0, 0.2, 0 );
+		scene.add( frontlight );
+		scene.add( frontlight.target );
 
 		// add the floor plane
 		const planeSize = 10;
@@ -157,15 +159,15 @@ function main() {
 
 	// CLUPI 2652 x 1768
 	const clupifov = 14;
-	const clupiaspect = 2652/1768;
-	const clupinear = 0.02;
-	const clupifar = 2;
-	// const clupiposy = 0;
-	const clupi = new THREE.PerspectiveCamera( clupifov, clupiaspect, clupinear, clupifar );
-	clupi.position.set( 0, 0, 0 );
+	const clupiaspectX = 2652;
+	const clupiaspectY = 1768;
+	const clupiaspect = clupiaspectX/clupiaspectY;
+	const clupinear = 0.1;
+	const clupifar = 0.35;
+	const clupi = new THREE.PerspectiveCamera( clupifov, clupiaspect, 0.1, 0.2 );
 
-	// Nav & LocCam tilted down 18deg
-	const nlrad = degToRad(18);
+	// LocCam tilted down 18deg
+	const lrad = THREE.MathUtils.degToRad(18);
 
 	// NavCam (1280x1024 5.3um pixels)
 	const navcamGroup = new THREE.Group();
@@ -180,7 +182,6 @@ function main() {
 	rnav.position.set( navposx, pcposy, pcposz );
 	navcamGroup.add(lnav);
 	navcamGroup.add(rnav);
-	navcamGroup.rotateX(-nlrad);
 
 	// LocCam
 	const loccamGroup = new THREE.Group();
@@ -191,7 +192,7 @@ function main() {
 	loccamGroup.add(lloc);
 	loccamGroup.add(rloc);
 	loccamGroup.position.set(0, 0.7, -0.5);
-	loccamGroup.rotateX(-nlrad);
+	loccamGroup.rotateX(-lrad);
 	scene.add(loccamGroup);
 
 	// create helpers to do the visualisation
@@ -238,37 +239,52 @@ function main() {
 	// finally, add it all to the scene
 	scene.add(panGroup);
 
+	// setup the drill and clupi group
+	// const drillWidth
 	const drillGroupHeight = 0.44;
-	drillgroup.position.set(-0.2, drillGroupHeight, -0.5);
-	clupi.rotateY(degToRad(90));
+	const drillGroupAngle = 0;
+	drillgroup.position.set(-0.2, drillGroupHeight, -0.605);
+	// main clupi
+	clupi.rotateY(THREE.MathUtils.degToRad(90));
 	clupi.position.set(0, -0.12, -0.12);
 	drillgroup.add(clupi);
 	scene.add(drillgroup);
+
+	let clupiVisAll = {	
+		visible: false, 
+	};
 
 	// panning and tilting from degrees
 	let panAngle = { value: 0 };
 	function setPan(angle){
 		// take degrees and turn to rads
-		panGroup.rotation.y = degToRad(angle);
+		panGroup.rotation.y = THREE.MathUtils.degToRad(angle);
 		panAngle.value = angle;
 	}
 	let tiltAngle = { value: 0 };
 	function setTilt(angle){
 		// take degrees and turn to rads, note that tilt is opposite direction
-		tiltGroup.rotation.x = -1 * degToRad(angle);
+		tiltGroup.rotation.x = -1 * THREE.MathUtils.degToRad(angle);
 		tiltAngle.value = angle;
 	}
 	// translation and rotation for drillbox
 	let drillAngle = { value: 0 };
 	function setDrillAngle(angle){
 		// take degrees and turn to rads
-		drillgroup.rotation.z = degToRad(angle);
+		drillgroup.rotation.z = THREE.MathUtils.degToRad(angle);
 		drillAngle.value = angle;
+		showHideClupi();
 	}
 	let drillHeight = { value: 0 };
 	function setDrillHeight(height){
 		drillgroup.position.y = (height / 100) + drillGroupHeight;
 		drillHeight.value = height;
+		showHideClupi();
+	}
+	function showHideClupi(){
+		if(clupiVisAll.visible == true) {
+			clupiVis.visible = true;
+		}
 	}
 	
 	let ptuPos = {
@@ -292,7 +308,8 @@ function main() {
 	const dcFolder = gui.addFolder( 'Drill Controls' );
 	dcFolder.add(drillAngle, 'value').name("Drill Angle (deg)").min(0).max(140).onChange( value => { setDrillAngle(value) });
 	dcFolder.add(drillHeight, 'value').name("Drill Height (cm)").min(-10).max(20).onChange( value => { setDrillHeight(value) });
-	dcFolder.add(clupiVis, 'visible').name("Show CLUPI");
+	dcFolder.add(clupiVisAll, 'visible').name("Show CLUPI").onChange( value => { showHideClupi() } );
+	dcFolder.close();
 
 	let navcams = {	
 		visible: false, 
@@ -340,6 +357,12 @@ function main() {
 			hrc.getViewSize(farVec, imgSize);
 			hrc.getWorldPosition(facingPos);
 		}
+		else if(camID == "nav"){
+			material = new THREE.MeshBasicMaterial( {color: 0x888888, side: THREE.DoubleSide, transparent: true, opacity: 0.5} );
+			farVec = lnav.far; 
+			lnav.getViewSize(farVec, imgSize);
+			lnav.getWorldPosition(facingPos);
+		}
 
 		// take a position and generate an element (pic) for the panorama
 		const geometry = new THREE.PlaneGeometry( imgSize.x, imgSize.y );
@@ -349,14 +372,13 @@ function main() {
 	    image.lookAt( facingPos );
 	    image.name = "panoElement";
 		group.add( image );
-		// imageListFolder.add();
 	}
 
 	let panoElements = new THREE.Object3D()
 	panoElements.name = "panoElements";
 	let panoElemArray = {};
 
-	function panPlan(start, stop, numPics, useLwac, useRwac, useHrc){
+	function panPlan(start, stop, numPics, useLwac, useRwac, useHrc, useNav){
 		let camDirection = new THREE.Vector3();
 		let camPosition = new THREE.Vector3();
 
@@ -383,6 +405,11 @@ function main() {
 				    hrc.getWorldPosition( camPosition );
 				    addPanoImg(camPosition, camDirection, panoElements, "hrc");
 				}
+				if(useNav){
+					lnav.getWorldDirection( camDirection );
+				    lnav.getWorldPosition( camPosition );
+				    addPanoImg(camPosition, camDirection, panoElements, "nav");
+				}
 				
 			}
 	    }
@@ -406,6 +433,12 @@ function main() {
 			    hrc.getWorldPosition( camPosition );
 			    addPanoImg(camPosition, camDirection, panoElements, "hrc");
 			}
+			if(useNav){
+				lnav.getWorldDirection( camDirection );
+			    lnav.getWorldPosition( camPosition );
+			    addPanoImg(camPosition, camDirection, panoElements, "nav");
+			    console.log('hi')
+			}
 
 			// no point adding two images if no movement (despite min being 2)
 			if(stop != start){
@@ -426,6 +459,11 @@ function main() {
 				    hrc.getWorldPosition( camPosition );
 				    addPanoImg(camPosition, camDirection, panoElements, "hrc");
 				}
+				if(useNav){
+					lnav.getWorldDirection( camDirection );
+				    lnav.getWorldPosition( camPosition );
+				    addPanoImg(camPosition, camDirection, panoElements, "nav");
+				}
 			}			
 	   	}
 
@@ -444,9 +482,10 @@ function main() {
 		lwac: false,
 		rwac: false,
 		hrc: false,
+		nav: false,
 		panPlan: function(){ 
 			// imageListFolder.show();
-			panPlan(this.start, this.stop, this.numPics, this.lwac, this.rwac, this.hrc); 
+			panPlan(this.start, this.stop, this.numPics, this.lwac, this.rwac, this.hrc, this.nav); 
 			// TODO work out percentage overlap??
 			// imageListFolder.add( myObject, 'myNumber', { Label1: 0, Label2: 1, Label3: 2 } );
 		},
@@ -459,6 +498,7 @@ function main() {
 			this.lwac = false;
 			this.rwac = false;
 			this.hrc = false;
+			this.nav = false;
 			if(scene.getObjectByName("panoElements")){
 				panoElements.clear();
 			}
@@ -474,17 +514,10 @@ function main() {
 	psFolder.add(panSpec, 'lwac').name("Use LWAC").listen();
 	psFolder.add(panSpec, 'rwac').name("Use RWAC").listen();
 	psFolder.add(panSpec, 'hrc').name("Use HRC").listen();
+	psFolder.add(panSpec, 'nav').name("Use NavCams").listen();
 	psFolder.add(panSpec, 'panPlan').name("Plan Pano");
 	psFolder.add(panSpec, 'clearPanPlan').name("Clear Pano Plan");
 	// psFolder.close();
-
-	// const imageListFolder = psFolder.addFolder( 'Image List' );
-	// imageListFolder.hide();
-
-	// function updateImgList(){
-	// 	for()
-	// }
-
 
 	function resizeRendererToDisplaySize( renderer ) {
 		const canvas = renderer.domElement;
