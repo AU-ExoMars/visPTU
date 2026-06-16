@@ -1,15 +1,13 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from '/OrbitControls.js';
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { GUI } from 'lil-gui';
 
 function main() {
 	const canvas = document.querySelector( '#c' );
 	const renderer = new THREE.WebGLRenderer( { antialias: true, canvas } );
 	const gui = new GUI( { 
-		// container: document.getElementById( 'panel' ), 
 		title: "VisPTU Control Panel",
-		// closeFolders: true,
 	} );
 
 	// main viewing camera
@@ -19,6 +17,7 @@ function main() {
 	const far = 100;
 	const camera = new THREE.PerspectiveCamera( fov, aspect, near, far );
 	camera.position.set( 0, 2, -8 );
+	// camera.position.set( 0, 0.5, -2 );
 
 	function updateCamera() {
 		camera.updateProjectionMatrix();
@@ -26,7 +25,8 @@ function main() {
 
 	// camera orbits PanCam
 	const controls = new OrbitControls( camera, canvas );
-	controls.target.set( 0, 2, 0 );
+	controls.target.set( 0, 1, 0 );
+	// controls.target.set( 0, 0.2, 0 );
 	controls.update();
 
 	class MinMaxGUIHelper {
@@ -68,7 +68,7 @@ function main() {
 		scene.add( sunlight );
 		scene.add( sunlight.target );
 
-		const frontlight = new THREE.DirectionalLight( color, 1 );
+		const frontlight = new THREE.DirectionalLight( color, intensity );
 		frontlight.position.set( 0, 10, -10 );
 		frontlight.target.position.set( 0, 0.2, 0 );
 		scene.add( frontlight );
@@ -162,9 +162,28 @@ function main() {
 	const clupiaspectX = 2652;
 	const clupiaspectY = 1768;
 	const clupiaspect = clupiaspectX/clupiaspectY;
+	const clupifov2aspectY = 1128;
+	const clupifov2aspect = clupiaspectX/clupifov2aspectY;
+	const clupifov3aspectY = 640;
+	const clupifov3aspect = clupiaspectX/clupifov3aspectY;
 	const clupinear = 0.1;
 	const clupifar = 0.35;
 	const clupi = new THREE.PerspectiveCamera( clupifov, clupiaspect, 0.1, 0.2 );
+	const clupi_fov_1 = new THREE.PerspectiveCamera( clupifov, clupiaspect, 0.001, 0.35 );
+	const clupi_fov_2 = new THREE.PerspectiveCamera( clupifov/(clupiaspectY/clupifov2aspectY), clupifov2aspect, 0.001, 0.25 );
+	const clupi_fov_3 = new THREE.PerspectiveCamera( clupifov/(clupiaspectY/clupifov3aspectY), clupifov3aspect, 0.001, 0.27 );
+	// clupi_fov_2.setViewOffset( clupiaspectX, clupiaspectY, 0, 0, clupiaspectX, clupifov2aspectY )
+	// clupi_fov_3.setViewOffset( clupiaspectX, clupiaspectY, 1, 0, clupiaspectX, clupifov3aspectY )
+
+	// const width = 1;
+	// const height = 1;
+	// const orthocamera = new THREE.OrthographicCamera( width / - 2, width / 2, height / 2, height / - 2, 1, 1000 );
+	// scene.add( orthocamera );
+	// const orthocameraVis = new THREE.CameraHelper(orthocamera);
+	// scene.add( orthocameraVis );
+
+
+	// q - what are split fovs? is fov/aspect correct?
 
 	// LocCam tilted down 18deg
 	const lrad = THREE.MathUtils.degToRad(18);
@@ -201,6 +220,9 @@ function main() {
 	const hrcVis = new THREE.CameraHelper(hrc);
 	const enfysVis = new THREE.CameraHelper(enfys);
 	const clupiVis = new THREE.CameraHelper(clupi);
+	const clupif1Vis = new THREE.CameraHelper(clupi_fov_1);
+	const clupif2Vis = new THREE.CameraHelper(clupi_fov_2);
+	const clupif3Vis = new THREE.CameraHelper(clupi_fov_3);
 	const lnavVis = new THREE.CameraHelper(lnav);
 	const rnavVis = new THREE.CameraHelper(rnav);
 	const llocVis = new THREE.CameraHelper(lloc);
@@ -210,6 +232,9 @@ function main() {
 	scene.add(hrcVis);
 	scene.add(enfysVis);
 	scene.add(clupiVis);
+	scene.add(clupif1Vis);
+	// scene.add(clupif2Vis);
+	// scene.add(clupif3Vis);
 	scene.add(lnavVis);
 	scene.add(rnavVis);
 	scene.add(llocVis);
@@ -220,10 +245,21 @@ function main() {
 	hrcVis.visible = false;
 	enfysVis.visible = false;
 	clupiVis.visible = false;
+	clupif1Vis.visible = false;
+	// clupif2Vis.visible = false;
+	// clupif3Vis.visible = false;
 	lnavVis.visible = false;
 	rnavVis.visible = false;
 	llocVis.visible = false;
 	rlocVis.visible = false;
+
+
+	const colorFrustum = new THREE.Color( 0xffaa00 );
+	const colorCone = new THREE.Color( 0x000000 );
+	const colorUp = new THREE.Color( 0x00aaff );
+	const colorTarget = new THREE.Color( 0xffffff );
+	const colorCross = new THREE.Color( 0x333333 );
+	clupif1Vis.setColors(colorFrustum, colorCone, colorUp, colorTarget, colorCross);
 
 	// add them to the tilt group
 	tiltGroup.add(lwac);
@@ -248,6 +284,19 @@ function main() {
 	clupi.rotateY(THREE.MathUtils.degToRad(90));
 	clupi.position.set(0, -0.12, -0.12);
 	drillgroup.add(clupi);
+	// fov 1
+	clupi_fov_1.rotateX(THREE.MathUtils.degToRad(-60));
+	clupi_fov_1.position.set(-0.2, -0.12, -0.12);
+	drillgroup.add(clupi_fov_1);
+	// fov 2
+	clupi_fov_2.rotateY(THREE.MathUtils.degToRad(90));
+	clupi_fov_2.position.set(0, -0.12, -0.12);
+	drillgroup.add(clupi_fov_2);
+	// fov 3
+	clupi_fov_3.rotateY(THREE.MathUtils.degToRad(90));
+	clupi_fov_1.rotateX(THREE.MathUtils.degToRad(0));
+	clupi_fov_3.position.set(0, -0.12, -0.12);
+	drillgroup.add(clupi_fov_3);
 	scene.add(drillgroup);
 
 	let clupiVisAll = {	
@@ -284,6 +333,23 @@ function main() {
 	function showHideClupi(){
 		if(clupiVisAll.visible == true) {
 			clupiVis.visible = true;
+			// if clupi sees the fov1 mirror, show that view
+			if(drillgroup.position.y == drillGroupHeight && drillgroup.rotation.z == drillGroupAngle){
+				clupif1Vis.visible = true;
+				clupif2Vis.visible = false;
+				clupif3Vis.visible = false;
+			}
+			// otherwise show fov 2/3
+			else {
+				clupif1Vis.visible = false;
+				clupif2Vis.visible = true;
+				clupif3Vis.visible = true;
+			}
+		} else {
+			clupiVis.visible = false;
+			clupif1Vis.visible = false;
+			clupif2Vis.visible = false;
+			clupif3Vis.visible = false;
 		}
 	}
 	
@@ -294,6 +360,30 @@ function main() {
 		homePTU: function(){ setPan(0); setTilt(0); },
 		// pancamView: function(){  },
 	};
+	let drillPos = {
+		homeDrill: function(){ setDrillAngle(0); setDrillHeight(0); },
+	};
+	let roverPos = {
+		homeAll: function(){ 
+			setPan(0); setTilt(0); 
+			setDrillAngle(0); setDrillHeight(0); },
+		showAllCam: function(){ 
+			lwacVis.visible = true;
+			rwacVis.visible = true;
+			hrcVis.visible = true;
+			enfysVis.visible = true;
+		},
+		hideAllCam: function(){ 
+			lwacVis.visible = false;
+			rwacVis.visible = false;
+			hrcVis.visible = false;
+			enfysVis.visible = false;
+		},
+	};
+
+	gui.add(roverPos, 'homeAll').name("Reset Rover");
+	gui.add(roverPos, 'showAllCam').name("Show All PanCam & Enfys");
+	gui.add(roverPos, 'hideAllCam').name("Hide All PanCam & Enfys");
 
 	const ptucFolder = gui.addFolder( 'PTU Controls' );
 	ptucFolder.add(panAngle, 'value').name("Pan (deg)").min(-180).max(180).onChange( value => { setPan(value) }).listen();
@@ -302,13 +392,13 @@ function main() {
 	ptucFolder.add(ptuPos, 'pctLwac').name("LWAC PCT");
 	ptucFolder.add(ptuPos, 'parkPanCam').name("Park PanCam");
 	ptucFolder.add(ptuPos, 'homePTU').name("Home PTU");
-	// ptucFolder.close();
+	ptucFolder.close();
 	// ptucFolder.add(ptuPos,'pancamView').name("View from PTU"); // TODO?
 
 	const dcFolder = gui.addFolder( 'Drill Controls' );
 	dcFolder.add(drillAngle, 'value').name("Drill Angle (deg)").min(0).max(140).onChange( value => { setDrillAngle(value) });
 	dcFolder.add(drillHeight, 'value').name("Drill Height (cm)").min(-10).max(20).onChange( value => { setDrillHeight(value) });
-	dcFolder.add(clupiVisAll, 'visible').name("Show CLUPI").onChange( value => { showHideClupi() } );
+	dcFolder.add(drillPos, 'homeDrill').name("Home Drill");
 	dcFolder.close();
 
 	let navcams = {	
@@ -316,19 +406,23 @@ function main() {
 		viewFar: navfar,
 	};
 
-	const ccFolder = gui.addFolder( 'Camera Controls' );
+	const cvFolder = gui.addFolder( 'Toggle Camera Visualisation' );
+	cvFolder.add(lwacVis, 'visible').name("Show LWAC").listen();
+	cvFolder.add(rwacVis, 'visible').name("Show RWAC").listen();
+	cvFolder.add(hrcVis, 'visible').name("Show HRC");
+	cvFolder.add(enfysVis, 'visible').name("Show Enfys");
+	cvFolder.add(navcams, 'visible').name("Show NavCams").onChange( value => { lnavVis.visible = value; rnavVis.visible = value });
+	cvFolder.add(navcams, 'visible').name("Show LocCams").onChange( value => { llocVis.visible = value; rlocVis.visible = value });
+	cvFolder.add(clupiVisAll, 'visible').name("Show CLUPI").onChange( value => { showHideClupi() } );
+	cvFolder.close();
+
+	const ccFolder = gui.addFolder( 'Camera Focus Distance' );
 	const viewStepSize = 0.1, viewMin = 2, viewMax = 10;
-	ccFolder.add(lwac, 'far', viewMin, viewMax).name("LWAC distance area (m)").step(viewStepSize);
-	ccFolder.add(rwac, 'far', viewMin, viewMax).name("RWAC distance area (m)").step(viewStepSize);
-	ccFolder.add(hrc, 'far', viewMin, viewMax).name("HRC focus distance (m)").step(viewStepSize);
-	ccFolder.add(enfys, 'far', viewMin, viewMax).name("Enfys focus distance (m)").step(viewStepSize);
-	ccFolder.add(navcams, 'viewFar').name("NavCams distance area (m)").step(viewStepSize).min(viewMin).max(viewMax).onChange( value => { lnav.far = value; rnav.far = value });
-	ccFolder.add(lwacVis, 'visible').name("Show LWAC");
-	ccFolder.add(rwacVis, 'visible').name("Show RWAC");
-	ccFolder.add(hrcVis, 'visible').name("Show HRC");
-	ccFolder.add(enfysVis, 'visible').name("Show Enfys");
-	ccFolder.add(navcams, 'visible').name("Show NavCams").onChange( value => { lnavVis.visible = value; rnavVis.visible = value });
-	ccFolder.add(navcams, 'visible').name("Show LocCams").onChange( value => { llocVis.visible = value; rlocVis.visible = value });
+	ccFolder.add(lwac, 'far', viewMin, viewMax).name("LWAC (m)").step(viewStepSize);
+	ccFolder.add(rwac, 'far', viewMin, viewMax).name("RWAC (m)").step(viewStepSize);
+	ccFolder.add(hrc, 'far', viewMin, viewMax).name("HRC (m)").step(viewStepSize);
+	ccFolder.add(enfys, 'far', viewMin, viewMax).name("Enfys (m)").step(viewStepSize);
+	ccFolder.add(navcams, 'viewFar').name("NavCams (m)").step(viewStepSize).min(viewMin).max(viewMax).onChange( value => { lnav.far = value; rnav.far = value });
 	ccFolder.close();
 
 	function addPanoImg(position, direction, group, camID){
@@ -372,6 +466,7 @@ function main() {
 	    image.lookAt( facingPos );
 	    image.name = "panoElement";
 		group.add( image );
+		// imageListFolder.add();
 	}
 
 	let panoElements = new THREE.Object3D()
@@ -517,7 +612,15 @@ function main() {
 	psFolder.add(panSpec, 'nav').name("Use NavCams").listen();
 	psFolder.add(panSpec, 'panPlan').name("Plan Pano");
 	psFolder.add(panSpec, 'clearPanPlan').name("Clear Pano Plan");
-	// psFolder.close();
+	psFolder.close();
+
+	// const imageListFolder = psFolder.addFolder( 'Image List' );
+	// imageListFolder.hide();
+
+	// function updateImgList(){
+	// 	for()
+	// }
+
 
 	function resizeRendererToDisplaySize( renderer ) {
 		const canvas = renderer.domElement;
