@@ -7,10 +7,19 @@ html, body {
 }
 button {
     width: 100%;
-    background-color: #666666;
+    background-color: #424242;
+    border-radius: 2px;
     color: rgb(235, 235, 235);
     font-size: 11px;
+    border: none;
+    margin-top: 2px;
+    margin-bottom: 2px;
 }
+button:hover{
+  background-color: #4f4f4f;
+}
+button:focus{
+  background-color: #595959;}
 
 #pageContainer {
   display: flex;

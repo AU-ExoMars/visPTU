@@ -11,10 +11,36 @@ const dataEntryTA = document.getElementById('dataEntryTA');
 // ======================== HTML ========================
 const updateVisBtn = document.getElementById('updateVis');
 const clearBtn = document.getElementById('clear');
+const copyRAPDBtn = document.getElementById('copyRAPD');
 
 clearBtn.onclick = function(){
   panoElemArray = [];
   dataEntryTA.value = "";
+};
+
+copyRAPDBtn.onclick = function(){
+	var copyText = dataEntryTA.value; // start with raw
+	// read and reformat the panoplan if able
+	let ppArray = dataEntryTA.value.split("\n"); 
+	if(ppArray.length > 1) {
+		copyText = "";
+		for(let i = 0; i < ppArray.length; i++){
+			if(ppArray[i].length > 1){
+				// comes in following format, so need to split
+				// id: p(2dp), t(2dp)	[cams:lrhen]
+				let ppASplit = ppArray[i].match(/(?<id>\d+): (?<pan>-?\d+.\d+), (?<tilt>-?\d+.\d+)(\s\[(?<cams>\w+)\])?/)
+				if(ppASplit != null){
+					copyText += `MAST_PTU_MoveTo(${ppASplit.groups.pan},${ppASplit.groups.tilt});\n`
+				}
+			}
+		}
+		// Copy the text inside the text field
+		navigator.clipboard.writeText(copyText);
+
+		// Alert the copied text
+		alert("Copied to clipboard: \n\n" + copyText);
+	}
+	alert("Nothing to copy!");
 };
 
 updateVisBtn.onclick = function(){
