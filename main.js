@@ -372,15 +372,23 @@ function showHideClupi(){
 // ======================== scene & menu setup ========================
 function setupScene(){
 	// create the scene
-	scene.background = new THREE.Color( 'grey' );
+	// scene.background = new THREE.Color( 'grey' );
+	scene.background = new THREE.Color( 'blanchedalmond' );
 	// add lighting
 	const color = 0xFFFFFF;
 	const intensity = 3;
 	const sunlight = new THREE.DirectionalLight( color, intensity );
-	sunlight.position.set( 0, 10, 0 );
-	sunlight.target.position.set( -5, 0, 0 );
+	sunlight.position.set( 0, 3, 0 );
+	sunlight.target.position.set( 0, 0, 0 );
 	scene.add( sunlight );
 	scene.add( sunlight.target );
+
+	// enable shadows
+	renderer.shadowMap.enabled = true;
+	renderer.shadowMap.type = true;
+
+	const helper = new THREE.DirectionalLightHelper( sunlight, 5 );
+	scene.add( helper );
 
 	const frontlight = new THREE.DirectionalLight( color, intensity );
 	frontlight.position.set( 0, 10, -10 );
@@ -427,9 +435,11 @@ function setupScene(){
 
 	// import the basic rover model
 	const loaderglb = new GLTFLoader();
-	loaderglb.load( 'assets/rfr_body_nodrill.glb', function ( gltf ) {
-		scene.add( gltf.scene );
+	loaderglb.load( 'assets/rfr_body_nodrill.glb', async function ( gltf ) {
+		
 		rfrBody = gltf.scene.getObjectByName("body");
+		rfrBody.castShadow = true;
+		scene.add( rfrBody );
 	}, undefined, function ( error ) {
 		console.error( error );
 	});
@@ -608,6 +618,13 @@ function setupScene(){
 	clupi_fov_3.position.set(0, -0.12, -0.12);
 	drillgroup.add(clupi_fov_3);
 	scene.add(drillgroup);
+
+	// shadows
+	sunlight.castShadow = true;
+	mesh.recieveShadow = true;
+	// rfrBody.castShadow = true;
+	// rfrMastHead.castShadow = true;
+	// rfrDrillbox.castShadow = true;
 };
 
 function setupMenus(){
