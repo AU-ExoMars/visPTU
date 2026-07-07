@@ -5,7 +5,7 @@ import { GUI } from 'lil-gui';
 
 const canvas = document.querySelector( '#visptu' );
 const renderer = new THREE.WebGLRenderer( { antialias: true, canvas } );
-let scene = new THREE.Scene(), camera, gui;
+let scene = new THREE.Scene(), camera, gui, sunlight;
 const dataEntryTA = document.getElementById('dataEntryTA');
 
 // ======================== HTML ========================
@@ -369,6 +369,8 @@ function showHideClupi(){
 	}
 };
 
+// ======================== scene control ========================
+
 // ======================== scene & menu setup ========================
 function setupScene(){
 	// create the scene
@@ -376,12 +378,17 @@ function setupScene(){
 	scene.background = new THREE.Color( 'blanchedalmond' );
 	// add lighting
 	const color = 0xFFFFFF;
-	const intensity = 3;
-	const sunlight = new THREE.DirectionalLight( color, intensity );
-	sunlight.position.set( 0, 3, 0 );
+	const intensity = 2;
+	sunlight = new THREE.DirectionalLight( color, intensity );
+	sunlight.position.set( 0, 5, 0 );
 	sunlight.target.position.set( 0, 0, 0 );
+	sunlight.shadow.camera.near = 0.5;
+	sunlight.shadow.camera.far = 2000;
+	sunlight.shadow.mapSize.width = 1024;
+	sunlight.shadow.mapSize.height = 1024;
+	sunlight.pivot = new THREE.Vector3( 0,0,0 );
 	scene.add( sunlight );
-	scene.add( sunlight.target );
+	// scene.add( sunlight.target );
 
 	// enable shadows
 	renderer.shadowMap.enabled = true;
@@ -393,8 +400,8 @@ function setupScene(){
 	const frontlight = new THREE.DirectionalLight( color, intensity );
 	frontlight.position.set( 0, 10, -10 );
 	frontlight.target.position.set( 0, 0.2, 0 );
-	scene.add( frontlight );
-	scene.add( frontlight.target );
+	// scene.add( frontlight );
+	// scene.add( frontlight.target );
 
 	// add the floor plane
 	const planeSize = 10;
@@ -410,9 +417,9 @@ function setupScene(){
 		map: texture,
 		side: THREE.DoubleSide,
 	} );
-	const mesh = new THREE.Mesh( planeGeo, planeMat );
-	mesh.rotation.x = Math.PI * - .5;
-	scene.add( mesh );
+	const ground = new THREE.Mesh( planeGeo, planeMat );
+	ground.rotation.x = Math.PI * - .5;
+	scene.add( ground );
 
 	// main viewing camera
 	const fov = 45;
@@ -436,15 +443,15 @@ function setupScene(){
 	// import the basic rover model
 	const loaderglb = new GLTFLoader();
 	loaderglb.load( 'assets/rfr_body_nodrill.glb', async function ( gltf ) {
-		
+		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; } });	
 		rfrBody = gltf.scene.getObjectByName("body");
-		rfrBody.castShadow = true;
 		scene.add( rfrBody );
 	}, undefined, function ( error ) {
 		console.error( error );
 	});
 	// import the basic PanCam model
 	loaderglb.load( 'assets/rfr_masthead.glb', function ( gltf ) {
+		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; } });
 		scene.add( gltf.scene );
 		rfrMastHead = gltf.scene.getObjectByName("masthead");
 		tiltGroup.add(rfrMastHead);
@@ -454,6 +461,7 @@ function setupScene(){
 	});
 	// import the drill model
 	loaderglb.load( 'assets/rfr_drill.glb', function ( gltf ) {
+		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; } });
 		scene.add( gltf.scene );
 		rfrDrillbox = gltf.scene.getObjectByName("drillaxis");
 		drillgroup.add(rfrDrillbox);
@@ -621,10 +629,7 @@ function setupScene(){
 
 	// shadows
 	sunlight.castShadow = true;
-	mesh.recieveShadow = true;
-	// rfrBody.castShadow = true;
-	// rfrMastHead.castShadow = true;
-	// rfrDrillbox.castShadow = true;
+	ground.receiveShadow = true;
 };
 
 function setupMenus(){
@@ -678,6 +683,9 @@ function setupMenus(){
 	dcFolder.add(drillHeight, 'value').name("Drill Height (cm)").min(-10).max(20).onChange( value => { setDrillHeight(value) });
 	dcFolder.add(drillPos, 'homeDrill').name("Home Drill");
 	dcFolder.close();
+
+	const envFolder = gui.addFolder( 'Environment Controls' );
+	envFolder.add(sunlight, 'rotateX').name("Light Angle (deg)").min(0).max(140);
 
 	const cvFolder = gui.addFolder( 'Toggle Camera Visualisation' );
 	cvFolder.add(lwacVis, 'visible').name("Show LWAC").listen();
