@@ -1,2 +1,6 @@
 .DS_Store
 /node_modules
+dist/assets/checker.png
+dist/assets/rfr_body_nodrill.glb
+dist/assets/rfr_drill.glb
+dist/assets/rfr_masthead.glb

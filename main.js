@@ -375,16 +375,30 @@ function showHideClupi(){
 // zenith = angle from vertical
 // azimuth = angle from North
 
-function setSunlightX(phi){
-	sunpivot.rotation.x = THREE.MathUtils.degToRad(phi);
+let sunAngle = { x: 0, y: 0, z: 0 };
+
+function setSunlightX(x){
+	sunpivot.rotation.x = THREE.MathUtils.degToRad(x);
+	sunAngle.x = x;
 };
 
-function setSunlightY(phi){
-	sunpivot.rotation.y = THREE.MathUtils.degToRad(phi);
+function setSunlightY(y){
+	sunpivot.rotation.y = THREE.MathUtils.degToRad(y);
+	sunAngle.y = y;
 };
 
-function setSunlightZ(phi){
-	sunpivot.rotation.z = THREE.MathUtils.degToRad(phi);
+function setSunlightZ(z){
+	sunpivot.rotation.z = THREE.MathUtils.degToRad(z);
+	sunAngle.z = z;
+};
+
+let envColours = {
+	background: [ 1, 0.922, 0.804 ],
+};
+
+function setBgColour(colour){
+	scene.background = new THREE.Color().fromArray(colour);
+	envColours.background = colour;
 };
 
 // ======================== scene & menu setup ========================
@@ -704,12 +718,14 @@ function setupMenus(){
 	dcFolder.close();
 
 	const envFolder = gui.addFolder( 'Environment Controls' );
-	let sunAngle = { x: 0, y: 0, z: 0, resetSun: function(){ setSunlightX(0); setSunlightY(0); setSunlightZ(0); },}
+	let sunPresets = { resetSun: function(){ setSunlightX(0); setSunlightY(0); setSunlightZ(0); },}
+	envFolder.addColor(envColours, 'background').name("Background").onChange( value => { setBgColour(value) }).listen();
 	envFolder.add(sunVis, 'visible').name("Show Sun Helper").listen();
-	envFolder.add(sunAngle, 'x').name("Sun X (deg)").min(-180).max(180).onChange( value => { setSunlightX(value) });
-	envFolder.add(sunAngle, 'y').name("Sun Y (deg)").min(-180).max(180).onChange( value => { setSunlightY(value) });
-	envFolder.add(sunAngle, 'z').name("Sun Z (deg)").min(-180).max(180).onChange( value => { setSunlightZ(value) });
-	envFolder.add(sunAngle, 'resetSun').name("Reset Sun");
+	envFolder.add(sunAngle, 'x').name("Sun X (deg)").min(-180).max(180).onChange( value => { setSunlightX(value) }).listen();
+	envFolder.add(sunAngle, 'y').name("Sun Y (deg)").min(-180).max(180).onChange( value => { setSunlightY(value) }).listen();
+	envFolder.add(sunAngle, 'z').name("Sun Z (deg)").min(-180).max(180).onChange( value => { setSunlightZ(value) }).listen();
+	envFolder.add(sunPresets, 'resetSun').name("Reset Sun");
+	envFolder.close();
 
 	const cvFolder = gui.addFolder( 'Toggle Camera Visualisation' );
 	cvFolder.add(lwacVis, 'visible').name("Show LWAC").listen();
