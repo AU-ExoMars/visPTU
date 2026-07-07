@@ -5,7 +5,7 @@ import { GUI } from 'lil-gui';
 
 const canvas = document.querySelector( '#visptu' );
 const renderer = new THREE.WebGLRenderer( { antialias: true, canvas } );
-let scene = new THREE.Scene(), camera, gui, sunlight;
+let scene = new THREE.Scene(), camera, gui, sunlight, sunpivot, sunVis;
 const dataEntryTA = document.getElementById('dataEntryTA');
 
 // ======================== HTML ========================
@@ -371,6 +371,22 @@ function showHideClupi(){
 
 // ======================== scene control ========================
 
+// elevation = angle from horz
+// zenith = angle from vertical
+// azimuth = angle from North
+
+function setSunlightX(phi){
+	sunpivot.rotation.x = THREE.MathUtils.degToRad(phi);
+};
+
+function setSunlightY(phi){
+	sunpivot.rotation.y = THREE.MathUtils.degToRad(phi);
+};
+
+function setSunlightZ(phi){
+	sunpivot.rotation.z = THREE.MathUtils.degToRad(phi);
+};
+
 // ======================== scene & menu setup ========================
 function setupScene(){
 	// create the scene
@@ -380,28 +396,31 @@ function setupScene(){
 	const color = 0xFFFFFF;
 	const intensity = 2;
 	sunlight = new THREE.DirectionalLight( color, intensity );
-	sunlight.position.set( 0, 5, 0 );
-	sunlight.target.position.set( 0, 0, 0 );
 	sunlight.shadow.camera.near = 0.5;
 	sunlight.shadow.camera.far = 2000;
+	sunlight.shadow.bias = -0.0001;
 	sunlight.shadow.mapSize.width = 1024;
 	sunlight.shadow.mapSize.height = 1024;
-	sunlight.pivot = new THREE.Vector3( 0,0,0 );
-	scene.add( sunlight );
-	// scene.add( sunlight.target );
+
+	sunVis = new THREE.DirectionalLightHelper( sunlight, 1 );
+	scene.add( sunVis );
+	sunVis.visible = false;
+
+	sunpivot = new THREE.Object3D();
+	scene.add(sunpivot);
+	sunpivot.add(sunlight);
+
+	sunlight.position.set( 0, 5, 0 );
+	sunlight.target.position.set( 0, 0, 0 );
 
 	// enable shadows
 	renderer.shadowMap.enabled = true;
 	renderer.shadowMap.type = true;
 
-	const helper = new THREE.DirectionalLightHelper( sunlight, 5 );
-	scene.add( helper );
-
-	const frontlight = new THREE.DirectionalLight( color, intensity );
+	const frontlight = new THREE.DirectionalLight( color, 1 );
 	frontlight.position.set( 0, 10, -10 );
 	frontlight.target.position.set( 0, 0.2, 0 );
-	// scene.add( frontlight );
-	// scene.add( frontlight.target );
+	scene.add( frontlight );
 
 	// add the floor plane
 	const planeSize = 10;
@@ -443,7 +462,7 @@ function setupScene(){
 	// import the basic rover model
 	const loaderglb = new GLTFLoader();
 	loaderglb.load( 'assets/rfr_body_nodrill.glb', async function ( gltf ) {
-		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; } });	
+		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; child.receiveShadow = true; } });	
 		rfrBody = gltf.scene.getObjectByName("body");
 		scene.add( rfrBody );
 	}, undefined, function ( error ) {
@@ -461,7 +480,7 @@ function setupScene(){
 	});
 	// import the drill model
 	loaderglb.load( 'assets/rfr_drill.glb', function ( gltf ) {
-		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; } });
+		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; child.receiveShadow = true; } });
 		scene.add( gltf.scene );
 		rfrDrillbox = gltf.scene.getObjectByName("drillaxis");
 		drillgroup.add(rfrDrillbox);
@@ -685,7 +704,12 @@ function setupMenus(){
 	dcFolder.close();
 
 	const envFolder = gui.addFolder( 'Environment Controls' );
-	envFolder.add(sunlight, 'rotateX').name("Light Angle (deg)").min(0).max(140);
+	let sunAngle = { x: 0, y: 0, z: 0, resetSun: function(){ setSunlightX(0); setSunlightY(0); setSunlightZ(0); },}
+	envFolder.add(sunVis, 'visible').name("Show Sun Helper").listen();
+	envFolder.add(sunAngle, 'x').name("Sun X (deg)").min(-180).max(180).onChange( value => { setSunlightX(value) });
+	envFolder.add(sunAngle, 'y').name("Sun Y (deg)").min(-180).max(180).onChange( value => { setSunlightY(value) });
+	envFolder.add(sunAngle, 'z').name("Sun Z (deg)").min(-180).max(180).onChange( value => { setSunlightZ(value) });
+	envFolder.add(sunAngle, 'resetSun').name("Reset Sun");
 
 	const cvFolder = gui.addFolder( 'Toggle Camera Visualisation' );
 	cvFolder.add(lwacVis, 'visible').name("Show LWAC").listen();
@@ -756,6 +780,7 @@ function render() {
 	clupiVis.update();
 	lnavVis.update();
 	rnavVis.update();
+	sunVis.update();
 
 	renderer.render( scene, camera );
 	requestAnimationFrame( render );
