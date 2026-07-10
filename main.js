@@ -5,7 +5,7 @@ import { GUI } from 'lil-gui';
 
 const canvas = document.querySelector( '#visptu' );
 const renderer = new THREE.WebGLRenderer( { antialias: true, canvas } );
-let scene = new THREE.Scene(), camera, gui, sunlight, sunpivot, sunVis;
+let scene = new THREE.Scene(), camera, gui;
 const dataEntryTA = document.getElementById('dataEntryTA');
 
 // ======================== HTML ========================
@@ -370,6 +370,7 @@ function showHideClupi(){
 };
 
 // ======================== scene control ========================
+let ground, sunlight, sunpivot, sunVis;
 
 // elevation = angle from horz
 // zenith = angle from vertical
@@ -401,10 +402,14 @@ function setBgColour(colour){
 	envColours.background = colour;
 };
 
+function toggleShadows(){
+	if(sunlight.castShadow == true){ sunlight.castShadow = false; }
+	else { sunlight.castShadow = true; }
+};
+
 // ======================== scene & menu setup ========================
 function setupScene(){
 	// create the scene
-	// scene.background = new THREE.Color( 'grey' );
 	scene.background = new THREE.Color( 'blanchedalmond' );
 	// add lighting
 	const color = 0xFFFFFF;
@@ -450,7 +455,7 @@ function setupScene(){
 		map: texture,
 		side: THREE.DoubleSide,
 	} );
-	const ground = new THREE.Mesh( planeGeo, planeMat );
+	ground = new THREE.Mesh( planeGeo, planeMat );
 	ground.rotation.x = Math.PI * - .5;
 	scene.add( ground );
 
@@ -718,9 +723,13 @@ function setupMenus(){
 	dcFolder.close();
 
 	const envFolder = gui.addFolder( 'Environment Controls' );
-	let sunPresets = { resetSun: function(){ setSunlightX(0); setSunlightY(0); setSunlightZ(0); },}
+	let sunPresets = { 
+		resetSun: function(){ setSunlightX(0); setSunlightY(0); setSunlightZ(0); },
+		shadows: function(){ toggleShadows(); }
+	};
 	envFolder.addColor(envColours, 'background').name("Background").onChange( value => { setBgColour(value) }).listen();
 	envFolder.add(sunVis, 'visible').name("Show Sun Helper").listen();
+	envFolder.add(sunPresets, 'shadows').name("Toggle Shadows");
 	envFolder.add(sunAngle, 'x').name("Sun X (deg)").min(-180).max(180).onChange( value => { setSunlightX(value) }).listen();
 	envFolder.add(sunAngle, 'y').name("Sun Y (deg)").min(-180).max(180).onChange( value => { setSunlightY(value) }).listen();
 	envFolder.add(sunAngle, 'z').name("Sun Z (deg)").min(-180).max(180).onChange( value => { setSunlightZ(value) }).listen();
