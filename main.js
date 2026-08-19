@@ -272,7 +272,7 @@ function clearAndRedrawPano(newSpec){
 let lwac, rwac, hrc, enfys, lnav, rnav, navfar=2, lwacVis, rwacVis, hrcVis, enfysVis, lnavVis, rnavVis;
 let lloc, rloc, llocVis, rlocVis;
 let clupi, clupi_fov_1, clupi_fov_2, clupi_fov_3, clupiVis, clupif1Vis, clupif2Vis, clupif3Vis;
-let tiltGroup, panGroup, drillGroup, roverGroup;
+let tiltGroup, panGroup, drillGroup, roverGroup, landerGroup;
 const drillGroupHeight = 0.44;
 const drillGroupAngle = 0;
 let lander;
@@ -479,6 +479,7 @@ function setupScene(){
 	panGroup = new THREE.Group();
 	drillGroup = new THREE.Group();
 	roverGroup = new THREE.Group();
+	landerGroup = new THREE.Group();
 
 	// import the basic rover model
 	const loaderglb = new GLTFLoader();
@@ -513,7 +514,7 @@ function setupScene(){
 		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; child.receiveShadow = true; } });
 		scene.add( gltf.scene );
 		lander = gltf.scene.getObjectById(77);
-		lander.visible = false;
+		landerGroup.add(lander);
 	}, undefined, function ( error ) {
 		console.error( error );
 	});
@@ -676,6 +677,7 @@ function setupScene(){
 	roverGroup.add(drillGroup);
 	roverGroup.position.set(0, 0, 0);
 	scene.add(roverGroup);
+	scene.add(landerGroup); // except the lander, initially
 
 	// shadows
 	sunlight.castShadow = true;
@@ -705,11 +707,11 @@ function setupMenus(){
 			enfysVis.visible = false;
 		},
 		toggleLander: function(){
-			if(lander.visible == true){
-				lander.visible = false;
+			if(landerGroup.visible == true){
+				landerGroup.visible = false;
 				roverGroup.position.set(0, 0, 0);
 			} else {
-				lander.visible = true;
+				landerGroup.visible = true;
 				roverGroup.position.set(0, 1.065, 0);
 			}
 		},
@@ -835,6 +837,7 @@ function render() {
 
 function main() {
 	setupScene();
+	landerGroup.visible = false;
 	setupMenus();
 	requestAnimationFrame( render );
 };
