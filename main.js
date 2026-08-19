@@ -511,8 +511,8 @@ function setupScene(){
 	// import the lander platform
 	loaderglb.load( 'assets/lander.glb', function ( gltf ) {
 		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; child.receiveShadow = true; } });
+		scene.add( gltf.scene );
 		lander = gltf.scene.getObjectById(77);
-		scene.add( lander );
 		lander.visible = false;
 	}, undefined, function ( error ) {
 		console.error( error );
