@@ -272,9 +272,10 @@ function clearAndRedrawPano(newSpec){
 let lwac, rwac, hrc, enfys, lnav, rnav, navfar=2, lwacVis, rwacVis, hrcVis, enfysVis, lnavVis, rnavVis;
 let lloc, rloc, llocVis, rlocVis;
 let clupi, clupi_fov_1, clupi_fov_2, clupi_fov_3, clupiVis, clupif1Vis, clupif2Vis, clupif3Vis;
-let tiltGroup, panGroup, drillgroup;
+let tiltGroup, panGroup, drillGroup, roverGroup;
 const drillGroupHeight = 0.44;
 const drillGroupAngle = 0;
+let lander, landerVisible = false;
 
 let clupiVisAll = {	
 	visible: false, 
@@ -334,14 +335,14 @@ function setTilt(angle){
 let drillAngle = { value: 0 };
 function setDrillAngle(angle){
 	// take degrees and turn to rads
-	drillgroup.rotation.z = THREE.MathUtils.degToRad(angle);
+	drillGroup.rotation.z = THREE.MathUtils.degToRad(angle);
 	drillAngle.value = angle;
 	showHideClupi();
 };
 
 let drillHeight = { value: 0 };
 function setDrillHeight(height){
-	drillgroup.position.y = (height / 100) + drillGroupHeight;
+	drillGroup.position.y = (height / 100) + drillGroupHeight;
 	drillHeight.value = height;
 	showHideClupi();
 };
@@ -350,7 +351,7 @@ function showHideClupi(){
 	if(clupiVisAll.visible == true) {
 		clupiVis.visible = true;
 		// if clupi sees the fov1 mirror, show that view
-		if(drillgroup.position.y == drillGroupHeight && drillgroup.rotation.z == drillGroupAngle){
+		if(drillGroup.position.y == drillGroupHeight && drillGroup.rotation.z == drillGroupAngle){
 			clupif1Vis.visible = true;
 			clupif2Vis.visible = false;
 			clupif3Vis.visible = false;
@@ -423,7 +424,7 @@ function setupScene(){
 	scene.add( frontlight );
 
 	// add the floor plane
-	const planeSize = 10;
+	const planeSize = 20;
 	const loader = new THREE.TextureLoader();
 	const texture = loader.load( 'assets/checker.png' );
 	texture.wrapS = THREE.RepeatWrapping;
@@ -457,7 +458,8 @@ function setupScene(){
 	let rfrBody, rfrMastHead, rfrDrillbox;
 	tiltGroup = new THREE.Group();
 	panGroup = new THREE.Group();
-	drillgroup = new THREE.Group();
+	drillGroup = new THREE.Group();
+	roverGroup = new THREE.Group();
 
 	// import the basic rover model
 	const loaderglb = new GLTFLoader();
@@ -465,6 +467,7 @@ function setupScene(){
 		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; child.receiveShadow = true; } });	
 		rfrBody = gltf.scene.getObjectByName("body");
 		scene.add( rfrBody );
+		roverGroup.add(rfrBody);
 	}, undefined, function ( error ) {
 		console.error( error );
 	});
@@ -474,7 +477,6 @@ function setupScene(){
 		scene.add( gltf.scene );
 		rfrMastHead = gltf.scene.getObjectByName("masthead");
 		tiltGroup.add(rfrMastHead);
-
 	}, undefined, function ( error ) {
 		console.error( error );
 	});
@@ -483,8 +485,16 @@ function setupScene(){
 		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; child.receiveShadow = true; } });
 		scene.add( gltf.scene );
 		rfrDrillbox = gltf.scene.getObjectByName("drillaxis");
-		drillgroup.add(rfrDrillbox);
-
+		drillGroup.add(rfrDrillbox);
+	}, undefined, function ( error ) {
+		console.error( error );
+	});
+	// import the lander platform
+	loaderglb.load( 'assets/lander.glb', function ( gltf ) {
+		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; child.receiveShadow = true; } });
+		lander = gltf.scene.getObjectById(77);
+		scene.add( lander );
+		lander.visible = false;
 	}, undefined, function ( error ) {
 		console.error( error );
 	});
@@ -622,29 +632,31 @@ function setupScene(){
 	panGroup.position.set(0, 1.9, -0.5);
 	panGroup.add(tiltGroup);
 
-	// finally, add it all to the scene
-	scene.add(panGroup);
-
 	// setup the drill and clupi group
-	drillgroup.position.set(-0.2, drillGroupHeight, -0.605);
+	drillGroup.position.set(-0.2, drillGroupHeight, -0.605);
 	// main clupi
 	clupi.rotateY(THREE.MathUtils.degToRad(90));
 	clupi.position.set(0, -0.12, -0.12);
-	drillgroup.add(clupi);
+	drillGroup.add(clupi);
 	// fov 1
 	clupi_fov_1.rotateX(THREE.MathUtils.degToRad(-60));
 	clupi_fov_1.position.set(-0.2, -0.12, -0.12);
-	drillgroup.add(clupi_fov_1);
+	drillGroup.add(clupi_fov_1);
 	// fov 2
 	clupi_fov_2.rotateY(THREE.MathUtils.degToRad(90));
 	clupi_fov_2.position.set(0, -0.12, -0.12);
-	drillgroup.add(clupi_fov_2);
+	drillGroup.add(clupi_fov_2);
 	// fov 3
 	clupi_fov_3.rotateY(THREE.MathUtils.degToRad(90));
 	clupi_fov_1.rotateX(THREE.MathUtils.degToRad(0));
 	clupi_fov_3.position.set(0, -0.12, -0.12);
-	drillgroup.add(clupi_fov_3);
-	scene.add(drillgroup);
+	drillGroup.add(clupi_fov_3);
+
+	// finally, add it all to the scene
+	roverGroup.add(panGroup);
+	roverGroup.add(drillGroup);
+	roverGroup.position.set(0, 0, 0);
+	scene.add(roverGroup);
 
 	// shadows
 	sunlight.castShadow = true;
@@ -673,11 +685,23 @@ function setupMenus(){
 			hrcVis.visible = false;
 			enfysVis.visible = false;
 		},
+		toggleLander: function(){
+			if(landerVisible){
+				lander.visible = false;
+				roverGroup.position.set(0, 0, 0);
+				landerVisible = false;
+			} else {
+				lander.visible = true;
+				roverGroup.position.set(0, 1.065, 0);
+				landerVisible = true;
+			}
+		},
 	};
 
 	gui.add(roverPos, 'homeAll').name("Reset Rover");
 	gui.add(roverPos, 'showAllCam').name("Show All PanCam & Enfys");
 	gui.add(roverPos, 'hideAllCam').name("Hide All PanCam & Enfys");
+	gui.add(roverPos, 'toggleLander').name("Toggle Lander");
 
 	let ptuPos = {
 		pctRwac: function(){ setPan(-43.5); setTilt(65.75); },
