@@ -275,7 +275,7 @@ let clupi, clupi_fov_1, clupi_fov_2, clupi_fov_3, clupiVis, clupif1Vis, clupif2V
 let tiltGroup, panGroup, drillGroup, roverGroup;
 const drillGroupHeight = 0.44;
 const drillGroupAngle = 0;
-let lander, landerVisible = false;
+let lander;
 
 let clupiVisAll = {	
 	visible: false, 
@@ -705,14 +705,12 @@ function setupMenus(){
 			enfysVis.visible = false;
 		},
 		toggleLander: function(){
-			if(landerVisible){
+			if(lander.visible == true){
 				lander.visible = false;
 				roverGroup.position.set(0, 0, 0);
-				landerVisible = false;
 			} else {
 				lander.visible = true;
 				roverGroup.position.set(0, 1.065, 0);
-				landerVisible = true;
 			}
 		},
 	};
