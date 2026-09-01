@@ -271,7 +271,7 @@ function clearAndRedrawPano(newSpec){
 // ======================== model control ========================
 let lwac, rwac, hrc, enfys, lnav, rnav, navfar=2, lwacVis, rwacVis, hrcVis, enfysVis, lnavVis, rnavVis;
 let lloc, rloc, llocVis, rlocVis;
-let clupi, clupi_fov_1, clupi_fov_2, clupi_fov_3, clupiVis, clupif1Vis, clupif2Vis, clupif3Vis;
+let clupi, clupi_fov_1, clupi_fov_2, clupi_fov_3, clupiVis, clupif1Vis, clupif2Vis, clupif3Vis, clupiFoV1Mesh;
 let tiltGroup, panGroup, drillGroup, roverGroup, landerGroup;
 const drillGroupHeight = 0.44;
 const drillGroupAngle = 0;
@@ -513,8 +513,7 @@ function setupScene(){
 	loaderglb.load( 'assets/lander.glb', function ( gltf ) {
 		gltf.scene.traverse(function (child){ if(child.isMesh){ child.castShadow = true; child.receiveShadow = true; } });
 		scene.add( gltf.scene );
-		lander = gltf.scene.getObjectById(77);
-		landerGroup.add(lander);
+		landerGroup.add(gltf.scene);
 	}, undefined, function ( error ) {
 		console.error( error );
 	});
@@ -566,6 +565,30 @@ function setupScene(){
 	clupi_fov_3 = new THREE.PerspectiveCamera( clupifov/(clupiaspectY/clupifov3aspectY), clupifov3aspect, 0.001, 0.27 );
 	// clupi_fov_2.setViewOffset( clupiaspectX, clupiaspectY, 0, 0, clupiaspectX, clupifov2aspectY )
 	// clupi_fov_3.setViewOffset( clupiaspectX, clupiaspectY, 1, 0, clupiaspectX, clupifov3aspectY )
+
+	// helpers
+	// const cube = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
+	// const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+	// O = (0,0,0)
+	// const origincube = new THREE.Mesh( cube, material );
+	// scene.add( origincube );
+	// CLUPI FOV1 centre working distance (1210 mm)
+	// const clf1WD = new THREE.Mesh( cube, material );
+	// clf1WD.position.set(-0.3,0,-1*(1.210+0.605));
+	// scene.add( clf1WD );
+
+	// clupi fov1 geometry projection
+	const clupiFoV1Shape = new THREE.Shape();
+	clupiFoV1Shape.moveTo(0, 1.637);
+	clupiFoV1Shape.lineTo(0, 1.014);
+	clupiFoV1Shape.lineTo(0.15, 0.832);
+	clupiFoV1Shape.lineTo(0.2, 1.234);
+	const clupiFoV1Geometry = new THREE.ShapeGeometry( clupiFoV1Shape );
+	const clupiFoV1Material = new THREE.MeshBasicMaterial( { color: 0x00ff00, side: THREE.DoubleSide } );
+	clupiFoV1Mesh = new THREE.Mesh( clupiFoV1Geometry, clupiFoV1Material ) ;
+	clupiFoV1Mesh.rotateX(THREE.MathUtils.degToRad(-90))
+	clupiFoV1Mesh.position.set(-0.2,(-1*drillGroupHeight)+0.001,0);
+	clupiFoV1Mesh.visible = false;
 
 	// NavCam (1280x1024 5.3um pixels)
 	const navcamGroup = new THREE.Group();
@@ -671,6 +694,7 @@ function setupScene(){
 	clupi_fov_1.rotateX(THREE.MathUtils.degToRad(0));
 	clupi_fov_3.position.set(0, -0.12, -0.12);
 	drillGroup.add(clupi_fov_3);
+	drillGroup.add(clupiFoV1Mesh);
 
 	// finally, add it all to the scene
 	roverGroup.add(panGroup);
@@ -768,6 +792,7 @@ function setupMenus(){
 	cvFolder.add(navcams, 'visible').name("Show NavCams").onChange( value => { lnavVis.visible = value; rnavVis.visible = value }).listen();
 	cvFolder.add(navcams, 'visible').name("Show LocCams").onChange( value => { llocVis.visible = value; rlocVis.visible = value }).listen();
 	cvFolder.add(clupiVisAll, 'visible').name("Show CLUPI").onChange( value => { showHideClupi() } ).listen();
+	cvFolder.add(clupiFoV1Mesh, 'visible').name("Show CLUPI FoV 1 (approximation)");
 	cvFolder.close();
 
 	const ccFolder = gui.addFolder( 'Camera Focus Distance' );
