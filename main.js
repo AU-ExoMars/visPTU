@@ -751,12 +751,14 @@ function setupMenus(){
 		pctLwac: function(){ setPan(-70); setTilt(65.75); },
 		parkPanCam: function(){ setPan(0); setTilt(60 ); },
 		homePTU: function(){ setPan(0); setTilt(0); },
+		clupiFov1Hrc: function(){ setPan(20.5); setTilt(59);},
 	};
 	const ptucFolder = gui.addFolder( 'PTU Controls' );
 	ptucFolder.add(panAngle, 'value').name("Pan (deg)").min(-180).max(180).onChange( value => { setPan(value) }).listen();
 	ptucFolder.add(tiltAngle, 'value').name("Tilt (deg)").min(-90).max(90).onChange( value => { setTilt(value) }).listen();
 	ptucFolder.add(ptuPos, 'pctRwac').name("RWAC PCT");
 	ptucFolder.add(ptuPos, 'pctLwac').name("LWAC PCT");
+	ptucFolder.add(ptuPos, 'clupiFov1Hrc').name("HRC view CLUPI FoV1 (approx)");
 	ptucFolder.add(ptuPos, 'parkPanCam').name("Park PanCam");
 	ptucFolder.add(ptuPos, 'homePTU').name("Home PTU");
 	ptucFolder.close();
@@ -792,7 +794,7 @@ function setupMenus(){
 	cvFolder.add(navcams, 'visible').name("Show NavCams").onChange( value => { lnavVis.visible = value; rnavVis.visible = value }).listen();
 	cvFolder.add(navcams, 'visible').name("Show LocCams").onChange( value => { llocVis.visible = value; rlocVis.visible = value }).listen();
 	cvFolder.add(clupiVisAll, 'visible').name("Show CLUPI").onChange( value => { showHideClupi() } ).listen();
-	cvFolder.add(clupiFoV1Mesh, 'visible').name("Show CLUPI FoV 1 (approximation)");
+	cvFolder.add(clupiFoV1Mesh, 'visible').name("Show CLUPI FoV 1 (approximation)").listen();
 	cvFolder.close();
 
 	const ccFolder = gui.addFolder( 'Camera Focus Distance' );
