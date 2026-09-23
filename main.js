@@ -394,6 +394,25 @@ function setSunlightZ(z){
 	sunAngle.z = z;
 };
 
+let roverAngle = { x: 0, y: 0, z: 0 };
+let roverYOffset = { y: 0 };
+function setRoverX(x){
+	roverGroup.rotation.x = THREE.MathUtils.degToRad(x);
+	roverAngle.x = x;
+};
+function setRoverY(y){
+	roverGroup.rotation.y = THREE.MathUtils.degToRad(y);
+	roverAngle.y = y;
+};
+function setRoverZ(z){
+	roverGroup.rotation.z = THREE.MathUtils.degToRad(z);
+	roverAngle.z = z;
+};
+function setRoverYOffset(y){
+	roverGroup.position.y = y;
+	roverYOffset.y = y;
+};
+
 let envColours = {
 	background: [ 1, 0.922, 0.804 ],
 };
@@ -777,6 +796,9 @@ function setupMenus(){
 		resetSun: function(){ setSunlightX(0); setSunlightY(0); setSunlightZ(0); },
 		shadows: function(){ toggleShadows(); }
 	};
+	let rvrPresets = { 
+		resetRover: function(){ setRoverX(0); setRoverY(0); setRoverZ(0); setRoverYOffset(0); } ,
+	};
 	envFolder.addColor(envColours, 'background').name("Background").onChange( value => { setBgColour(value) }).listen();
 	envFolder.add(sunVis, 'visible').name("Show Sun Helper").listen();
 	envFolder.add(sunPresets, 'shadows').name("Toggle Shadows");
@@ -784,6 +806,11 @@ function setupMenus(){
 	envFolder.add(sunAngle, 'y').name("Sun Y (deg)").min(-180).max(180).onChange( value => { setSunlightY(value) }).listen();
 	envFolder.add(sunAngle, 'z').name("Sun Z (deg)").min(-180).max(180).onChange( value => { setSunlightZ(value) }).listen();
 	envFolder.add(sunPresets, 'resetSun').name("Reset Sun");
+	envFolder.add(roverAngle, 'x').name("Rover X (deg)").min(-25).max(25).onChange( value => { setRoverX(value) }).listen();
+	envFolder.add(roverAngle, 'y').name("Rover Y (deg)").min(-25).max(25).onChange( value => { setRoverY(value) }).listen();
+	envFolder.add(roverAngle, 'z').name("Rover Z (deg)").min(-25).max(25).onChange( value => { setRoverZ(value) }).listen();
+	envFolder.add(roverYOffset, 'y').name("Rover Vertical Offset (m)").min(0).max(1).onChange( value => { setRoverYOffset(value) }).listen();
+	envFolder.add(rvrPresets, 'resetRover').name("Reset Rover");
 	envFolder.close();
 
 	const cvFolder = gui.addFolder( 'Toggle Camera Visualisation' );
