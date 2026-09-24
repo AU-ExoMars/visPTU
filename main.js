@@ -3,6 +3,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from './OrbitControls.js';
 import { GUI } from 'lil-gui';
 
+import { panArrayGenerator } from './panoPlanning.js';
+
 const canvas = document.querySelector( '#visptu' );
 const renderer = new THREE.WebGLRenderer( { antialias: true, canvas } );
 let scene = new THREE.Scene(), camera, gui;
@@ -171,28 +173,6 @@ function addPanoImg(position, direction, group, camID){
 	group.add( image );
 };
 
-function panArrayGenerator(start, stop=0, numPics, stride=0){
-	let currPan = start, angleArray = [], step;
-	angleArray.push(currPan);
-	// if not passing a stride value, must be a range pano
-	if(stride != 0){
-		step = stride;
-		stop = start + (stride*(numPics-1));
-	}
-
-	// if no change in angle, there's only one pan
-	if(start == stop) return angleArray;
-
-	if((numPics - 2) > 0) step = (stop - start) / (numPics-1);
-	else step = stop - start;
-
-	for(let p = 0; p < numPics-1; p++) {
-		angleArray.push(currPan + step);
-		currPan += step;
-	};
-	return angleArray;
-};
-
 function displayPanoElem(cam, direction, position){
 	if(cam == "lwac"){
 		lwac.getWorldDirection( direction );
@@ -256,7 +236,7 @@ function panoPlanFromPTU(pans, tilts, cams){
 	};
 
 	// reset ptu to centre
-    setPan(0);
+    // setPan(0);
     // setTilt(0);
     scene.add(panoElements);
     formatPanoPlanText(panoElemArray);
@@ -274,7 +254,6 @@ function clearAndRedrawPano(newSpec){
 			tiltList.push(ppASplit.groups.tilt);
 			camsList.push(ppASplit.groups.cams);
 		}
-		console.log(panList, tiltList, camsList)
 	}
 	panoPlanFromPTU(panList, tiltList, camsList);
 };
@@ -307,9 +286,15 @@ let panoSpec = {
 	hrc: false,
 	enfys: false,
 	nav: false,
-	panoPlan: function(){ 
-		let panList = panArrayGenerator(this.start, this.stop, this.numPics, this.stride);
-		panoPlan(panList, this.numPics, this.lwac, this.rwac, this.hrc, this.enfys, this.nav); 
+	panoPlanRange: function(){ 
+		panoPlan(
+			panArrayGenerator(0, this.start, this.stop, this.numPics, this.stride),
+			this.numPics, this.lwac, this.rwac, this.hrc, this.enfys, this.nav); 
+	},
+	panoPlanStride: function(){ 
+		panoPlan(
+			panArrayGenerator(1, this.start, this.stop, this.numPics, this.stride),
+			this.numPics, this.lwac, this.rwac, this.hrc, this.enfys, this.nav); 
 	},
 	clearPanoPlan: function(){ 
 		// collect all the pics and clear them, reset variables
@@ -333,13 +318,20 @@ let panoSpec = {
 // panning and tilting from degrees
 let panAngle = { value: 0 };
 function setPan(angle){
+	// if request out of bounds, cap
+	if(angle >= 185) angle = 185;
+	if(angle <= -185) angle = -185;
 	// take degrees and turn to rads
 	panGroup.rotation.y = THREE.MathUtils.degToRad(angle);
 	panAngle.value = angle;
+	panoSpec.start = angle;
 };
 
 let tiltAngle = { value: 0 };
 function setTilt(angle){
+// if request out of bounds, cap
+	if(angle >= 90) angle = 90;
+	if(angle <= -90) angle = -90;
 	// take degrees and turn to rads, note that tilt is opposite direction
 	tiltGroup.rotation.x = -1 * THREE.MathUtils.degToRad(angle);
 	tiltAngle.value = angle;
@@ -391,17 +383,14 @@ let ground, sunlight, sunpivot, sunVis;
 // azimuth = angle from North
 
 let sunAngle = { x: 0, y: 0, z: 0 };
-
 function setSunlightX(x){
 	sunpivot.rotation.x = THREE.MathUtils.degToRad(x);
 	sunAngle.x = x;
 };
-
 function setSunlightY(y){
 	sunpivot.rotation.y = THREE.MathUtils.degToRad(y);
 	sunAngle.y = y;
 };
-
 function setSunlightZ(z){
 	sunpivot.rotation.z = THREE.MathUtils.degToRad(z);
 	sunAngle.z = z;
@@ -429,7 +418,6 @@ function setRoverYOffset(y){
 let envColours = {
 	background: [ 1, 0.922, 0.804 ],
 };
-
 function setBgColour(colour){
 	scene.background = new THREE.Color().fromArray(colour);
 	envColours.background = colour;
@@ -846,7 +834,7 @@ function setupMenus(){
 	ccFolder.add(navcams, 'viewFar').name("NavCams (m)").step(viewStepSize).min(viewMin).max(viewMax).onChange( value => { lnav.far = value; rnav.far = value });
 	ccFolder.close();
 
-	const psFtFolder = gui.addFolder( 'Pan Panorama Planner (Fixed Tilt)' );
+	const psFtFolder = gui.addFolder( 'Pan Panorama Planner (Range)' );
 	psFtFolder.add(panoSpec, 'start').name('Pan Start (deg)').min(-180).max(180).listen();
 	psFtFolder.add(panoSpec, 'stop',).name('Pan Stop (deg)').min(-180).max(180).listen();
 	psFtFolder.add(panoSpec, 'numPics', 2, 30, 1 ).name('Number of Images').listen();
@@ -856,7 +844,7 @@ function setupMenus(){
 	psFtFolder.add(panoSpec, 'hrc').name("Use HRC").listen();
 	psFtFolder.add(panoSpec, 'enfys').name("Use Enfys").listen();
 	psFtFolder.add(panoSpec, 'nav').name("Use NavCams").listen();
-	psFtFolder.add(panoSpec, 'panoPlan').name("Plan Pano (Start/Stop)");
+	psFtFolder.add(panoSpec, 'panoPlanRange').name("Plan Pano (Start/Stop)");
 	psFtFolder.close();
 
 	const psSFolder = gui.addFolder( 'Pan Panorama Planner (Stride)' );
@@ -869,7 +857,7 @@ function setupMenus(){
 	psSFolder.add(panoSpec, 'hrc').name("Use HRC").listen();
 	psSFolder.add(panoSpec, 'enfys').name("Use Enfys").listen();
 	psSFolder.add(panoSpec, 'nav').name("Use NavCams").listen();
-	psSFolder.add(panoSpec, 'panoPlan').name("Plan Pano (Stride)");
+	psSFolder.add(panoSpec, 'panoPlanStride').name("Plan Pano (Stride)");
 	psSFolder.close();
 
 	gui.add(panoSpec, 'clearVisualisation').name(" Clear Visualisation");
