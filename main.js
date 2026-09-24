@@ -171,12 +171,19 @@ function addPanoImg(position, direction, group, camID){
 	group.add( image );
 };
 
-function panArrayGenerator(start, stop, numPics){
+function panArrayGenerator(start, stop=0, numPics, stride=0){
 	let currPan = start, angleArray = [], step;
 	angleArray.push(currPan);
+	// if not passing a stride value, must be a range pano
+	if(stride != 0){
+		step = stride;
+		stop = start + (stride*(numPics-1));
+	}
 
+	// if no change in angle, there's only one pan
 	if(start == stop) return angleArray;
-	else if((numPics - 2) > 0) step = (stop - start) / (numPics-1);
+
+	if((numPics - 2) > 0) step = (stop - start) / (numPics-1);
 	else step = stop - start;
 
 	for(let p = 0; p < numPics-1; p++) {
@@ -220,6 +227,9 @@ function panoPlan(pans, numPics, useLwac, useRwac, useHrc, useEnfys, useNav){
 	if(useEnfys) camStr += "e";
 	if(useNav) camStr += "n";
 
+	// if nothing selected, default to nav - need something to avoid bad behaviour later
+	if(camStr == "") camStr += "n";
+
 	let tilts = [];
 	for(let p = 0; p < pans.length; p++){
 		tilts.push(tiltAngle.value);
@@ -247,7 +257,7 @@ function panoPlanFromPTU(pans, tilts, cams){
 
 	// reset ptu to centre
     setPan(0);
-    setTilt(0);
+    // setTilt(0);
     scene.add(panoElements);
     formatPanoPlanText(panoElemArray);
 };
@@ -264,6 +274,7 @@ function clearAndRedrawPano(newSpec){
 			tiltList.push(ppASplit.groups.tilt);
 			camsList.push(ppASplit.groups.cams);
 		}
+		console.log(panList, tiltList, camsList)
 	}
 	panoPlanFromPTU(panList, tiltList, camsList);
 };
@@ -290,13 +301,14 @@ let panoSpec = {
 	start: 0, 
 	stop: 0, 
 	numPics: 2,
+	stride: 0,
 	lwac: false,
 	rwac: false,
 	hrc: false,
 	enfys: false,
 	nav: false,
 	panoPlan: function(){ 
-		let panList = panArrayGenerator(this.start, this.stop, this.numPics);
+		let panList = panArrayGenerator(this.start, this.stop, this.numPics, this.stride);
 		panoPlan(panList, this.numPics, this.lwac, this.rwac, this.hrc, this.enfys, this.nav); 
 	},
 	clearPanoPlan: function(){ 
@@ -304,6 +316,7 @@ let panoSpec = {
 		this.start = 0;
 		this.stop = 0;
 		this.numPics = 2;
+		this.stride = 0;
 		this.lwac = false;
 		this.rwac = false;
 		this.hrc = false;
@@ -833,19 +846,34 @@ function setupMenus(){
 	ccFolder.add(navcams, 'viewFar').name("NavCams (m)").step(viewStepSize).min(viewMin).max(viewMax).onChange( value => { lnav.far = value; rnav.far = value });
 	ccFolder.close();
 
-	const psFolder = gui.addFolder( 'Pan Panorama Planner (Fixed Tilt)' );
-	psFolder.add(panoSpec, 'start').name('Pan Start (deg)').min(-180).max(180).listen();
-	psFolder.add(panoSpec, 'stop',).name('Pan Stop (deg)').min(-180).max(180).listen();
-	psFolder.add(panoSpec, 'numPics', 2, 30, 1 ).name('Number of Images').listen();
-	psFolder.add(tiltAngle, 'value').name("Tilt (deg)").min(-90).max(90).onChange( value => { setTilt(value) }).listen();
-	psFolder.add(panoSpec, 'lwac').name("Use LWAC").listen();
-	psFolder.add(panoSpec, 'rwac').name("Use RWAC").listen();
-	psFolder.add(panoSpec, 'hrc').name("Use HRC").listen();
-	psFolder.add(panoSpec, 'enfys').name("Use Enfys").listen();
-	psFolder.add(panoSpec, 'nav').name("Use NavCams").listen();
-	psFolder.add(panoSpec, 'panoPlan').name("Plan Pano");
-	psFolder.add(panoSpec, 'clearPanoPlan').name("Clear Plan");
-	psFolder.add(panoSpec, 'clearVisualisation').name(" Clear Visualisation")
+	const psFtFolder = gui.addFolder( 'Pan Panorama Planner (Fixed Tilt)' );
+	psFtFolder.add(panoSpec, 'start').name('Pan Start (deg)').min(-180).max(180).listen();
+	psFtFolder.add(panoSpec, 'stop',).name('Pan Stop (deg)').min(-180).max(180).listen();
+	psFtFolder.add(panoSpec, 'numPics', 2, 30, 1 ).name('Number of Images').listen();
+	psFtFolder.add(tiltAngle, 'value').name("Tilt (deg)").min(-90).max(90).onChange( value => { setTilt(value) }).listen();
+	psFtFolder.add(panoSpec, 'lwac').name("Use LWAC").listen();
+	psFtFolder.add(panoSpec, 'rwac').name("Use RWAC").listen();
+	psFtFolder.add(panoSpec, 'hrc').name("Use HRC").listen();
+	psFtFolder.add(panoSpec, 'enfys').name("Use Enfys").listen();
+	psFtFolder.add(panoSpec, 'nav').name("Use NavCams").listen();
+	psFtFolder.add(panoSpec, 'panoPlan').name("Plan Pano (Start/Stop)");
+	psFtFolder.close();
+
+	const psSFolder = gui.addFolder( 'Pan Panorama Planner (Stride)' );
+	psSFolder.add(panoSpec, 'start').name('Pan Start (deg)').min(-180).max(180).listen();
+	psSFolder.add(panoSpec, 'stride').name('Stride (± pan, deg)').min(-180).max(180).listen();
+	psSFolder.add(panoSpec, 'numPics', 2, 30, 1 ).name('Number of Images').listen();
+	psSFolder.add(tiltAngle, 'value').name("Tilt (deg)").min(-90).max(90).onChange( value => { setTilt(value) }).listen();
+	psSFolder.add(panoSpec, 'lwac').name("Use LWAC").listen();
+	psSFolder.add(panoSpec, 'rwac').name("Use RWAC").listen();
+	psSFolder.add(panoSpec, 'hrc').name("Use HRC").listen();
+	psSFolder.add(panoSpec, 'enfys').name("Use Enfys").listen();
+	psSFolder.add(panoSpec, 'nav').name("Use NavCams").listen();
+	psSFolder.add(panoSpec, 'panoPlan').name("Plan Pano (Stride)");
+	psSFolder.close();
+
+	gui.add(panoSpec, 'clearVisualisation').name(" Clear Visualisation");
+	gui.add(panoSpec, 'clearPanoPlan').name("Clear Plan");
 };
 
 // ======================== rendering ========================
