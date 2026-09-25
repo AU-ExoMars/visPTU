@@ -22,23 +22,26 @@ export function panArrayGenerator(type=0, start=0, stop=0, numPics=2, stride=0){
 	}
 
 	for(let p = 0; p < numPics; p++) {
-		// work out planned next position
-		nextPan = currPan + step;
-		// apply next angle within bounds and wrap if needed
-		if(nextPan >= 185){
-			// take whatever is above the bound, add it to the flipped direction
-			currPan = -175 + (nextPan - 185);
-		}
-		else if((currPan + step) <= -185){
-			// take whatever is below the bound, add it to the flipped direction
-			currPan = 175 - (-185 + nextPan);
-		}
-		else {
-			currPan = nextPan;
-		}
+		currPan = wrapPan(currPan, step);
 		angleArray.push(currPan);	// next position
 	};
 	return angleArray;
 };
 
-
+export function wrapPan(currPan, step){
+	// work out planned next position
+	let nextPan = currPan + step;
+	// apply next angle within bounds and wrap if needed
+	if(nextPan >= 185){
+		// take whatever is above the bound, add it to the flipped direction
+		currPan = -175 + (nextPan - 185);
+	}
+	else if((currPan + step) <= -185){
+		// take whatever is below the bound, add it to the flipped direction
+		currPan = 175 - (-185 + nextPan);
+	}
+	else {
+		currPan = nextPan;
+	}
+	return currPan;
+};

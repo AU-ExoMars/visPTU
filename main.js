@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from './OrbitControls.js';
 import { GUI } from 'lil-gui';
 
-import { panArrayGenerator } from './panoPlanning.js';
+import { panArrayGenerator, wrapPan } from './panoPlanning.js';
 
 const canvas = document.querySelector( '#visptu' );
 const renderer = new THREE.WebGLRenderer( { antialias: true, canvas } );
@@ -235,11 +235,8 @@ function panoPlanFromPTU(pans, tilts, cams){
 		};
 	};
 
-	// reset ptu to centre
-    // setPan(0);
-    // setTilt(0);
-    scene.add(panoElements);
-    formatPanoPlanText(panoElemArray);
+  scene.add(panoElements);
+  formatPanoPlanText(panoElemArray);
 };
 
 function clearAndRedrawPano(newSpec){
@@ -256,6 +253,48 @@ function clearAndRedrawPano(newSpec){
 		}
 	}
 	panoPlanFromPTU(panList, tiltList, camsList);
+};
+
+function adjustPano(panoSpec, adjPan, adjTilt, adjStride){
+	let panList = [], tiltList = [], camsList = [];
+	let panListNew = [], tiltListNew = [];
+	// check there's something to parse
+	if(panoSpec.length > 1) {
+		// check there's actually adjustments to make
+		// if so, split up the plan
+		let panList = [], tiltList = [];
+		for(let i = 0; i < panoSpec.length; i++){
+			if(panoSpec[i].length > 1){
+				// id: p(2dp), t(2dp)	[cams:lrhen]
+				let ppASplit = panoSpec[i].match(/(?<id>\d+): (?<pan>-?\d+.\d+), (?<tilt>-?\d+.\d+)(\s\[(?<cams>\w+)\])?/)
+				panList.push(ppASplit.groups.pan);
+				tiltList.push(ppASplit.groups.tilt);
+				camsList.push(ppASplit.groups.cams);
+			}
+		}
+		if(adjPan != 0){
+			for(let i = 0; i < panList.length; i++){
+				let newPan = wrapPan(Number(panList[i]), adjPan)
+				panListNew.push(newPan);
+			}
+		} else panListNew = panList;
+		if(adjTilt != 0){
+			for(let i = 0; i < tiltList.length; i++){
+				// cap
+				let newTilt = Number(tiltList[i]) + adjTilt;
+				if(newTilt < -90) newTilt = -90
+				else if(newTilt > 90) newTilt = 90
+				tiltListNew.push(newTilt);
+			}
+		} else tiltListNew = tiltList;
+		if(adjStride != 0){
+			// for(let i = 0; i < panList.length; i++){
+				// panList[i] = Number(panList[i]) + adjTilt;
+				// TODO Finish!
+			// }
+		}
+	}
+	return [panListNew, tiltListNew, camsList]
 };
 
 // ======================== model control ========================
@@ -281,6 +320,9 @@ let panoSpec = {
 	stop: 0, 
 	numPics: 2,
 	stride: 0,
+	panAdj: 0,
+	tiltAdj: 0,
+	strideAdj: 0,
 	lwac: false,
 	rwac: false,
 	hrc: false,
@@ -295,6 +337,22 @@ let panoSpec = {
 		panoPlan(
 			panArrayGenerator(1, this.start, this.stop, this.numPics, this.stride),
 			this.numPics, this.lwac, this.rwac, this.hrc, this.enfys, this.nav); 
+	},
+	adjustPlan:function(){ 
+		// get existing plan
+		let ppArray = dataEntryTA.value.split("\n"); 
+		let updatedSpec, panList, tiltList, camsList, data;
+		if(ppArray.length > 1) {
+			// update the values
+			data = adjustPano(ppArray, this.panAdj, this.tiltAdj, this.strideAdj);
+			panList = data[0];
+			tiltList = data[1];
+			camsList = data[2];
+		}
+		// clear and redraw
+		this.clearVisualisation();
+		panoElemArray = [];
+		panoPlanFromPTU(panList, tiltList, camsList);
 	},
 	clearPanoPlan: function(){ 
 		// collect all the pics and clear them, reset variables
@@ -859,6 +917,13 @@ function setupMenus(){
 	psSFolder.add(panoSpec, 'nav').name("Use NavCams").listen();
 	psSFolder.add(panoSpec, 'panoPlanStride').name("Plan Pano (Stride)");
 	psSFolder.close();
+
+	const pAdjFolder = gui.addFolder( 'Panorama Batch Adjuster' );
+	pAdjFolder.add(panoSpec, 'panAdj').name('Pan Adjust (deg)').min(-180).max(180);
+	pAdjFolder.add(panoSpec, 'tiltAdj').name('Tilt Adjust (deg)').min(-90).max(90);
+	// pAdjFolder.add(panoSpec, 'strideAdj').name('Stride Adjust (deg)').min(-180).max(180);
+	pAdjFolder.add(panoSpec, 'adjustPlan').name('Adjust existing Panorama');
+	pAdjFolder.close();
 
 	gui.add(panoSpec, 'clearVisualisation').name(" Clear Visualisation");
 	gui.add(panoSpec, 'clearPanoPlan').name("Clear Plan");
